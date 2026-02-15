@@ -7,7 +7,6 @@ connected_players = set()
 
 
 async def handle_connection(websocket) -> None:
-    print(type(websocket))
     connected_players.add(websocket)
     try:
         async for message in websocket:
