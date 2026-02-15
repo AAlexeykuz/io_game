@@ -6,7 +6,8 @@
     <ul id="output"></ul>
 
     <script>
-      const socket = new WebSocket("ws://localhost:8080");
+      const hostIP = window.location.hostname || "localhost";
+      const socket = new WebSocket(`ws://${hostIP}:8080`);
 
       const sendButton = document.getElementById("sendButton");
       const inputField = document.getElementById("messageInput");

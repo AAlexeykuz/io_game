@@ -19,7 +19,7 @@ async def handle_connection(websocket) -> None:
 
 
 async def main() -> None:
-    async with websockets.serve(handle_connection, "localhost", 8080):
+    async with websockets.serve(handle_connection, "0.0.0.0", 8080):
         print("Сервер запущен")
         await asyncio.Future()
 
