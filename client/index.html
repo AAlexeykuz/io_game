@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <body>
+    <input type="text" id="messageInput" placeholder="Type a message..." />
+    <button id="sendButton">Send to Server</button>
+    <ul id="output"></ul>
+
+    <script>
+      const socket = new WebSocket("ws://localhost:8080");
+
+      const sendButton = document.getElementById("sendButton");
+      const inputField = document.getElementById("messageInput");
+      const outputField = document.getElementById("output");
+
+      sendButton.addEventListener("click", () => {
+        const text = inputField.value;
+        if (text !== "") {
+          socket.send(text);
+          inputField.value = "";
+        }
+      });
+
+      socket.onmessage = (event) => {
+        const newMessage = document.createElement("li");
+        newMessage.textContent = event.data;
+        outputField.appendChild(newMessage);
+      };
+    </script>
+  </body>
+</html>
