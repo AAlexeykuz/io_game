@@ -4,8 +4,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-import json
-
 app = FastAPI()
 app.mount(
     "/static", StaticFiles(directory="static"), name="static"
