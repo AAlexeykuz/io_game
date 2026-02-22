@@ -21,3 +21,13 @@ function sendMovement(x,y) {
         socket.send(message);
     }
 }
+
+// ПОЛУЧЕНИЕ ДАННЫХ JSON
+fetch('http://127.0.0.1:8000/')
+    .then(data => {
+        if(data == true){
+            return data.json();
+        } else if(data == false){
+            throw new Error('Ошибка!');
+        }
+    })
