@@ -1,16 +1,14 @@
-DTIME = 1 / 20
-
-
 class Player:
     speed: float = 5
 
-    def __init__(self, x: float, y: float):
-        self.x: float = x  # начальная координата x
-        self.y: float = y  # начальная координата y
+    def __init__(self, x: float, y: float) -> None:
+        self.x: float = x
+        self.y: float = y
         self.vx: float = 0.0  # направление движения по оси X
         self.vy: float = 0.0  # направление движения по оси Y
 
     def normalize_velocity(self) -> None:
+        """Нормализует сохранённую скорость игрока"""
         length = (self.vx**2 + self.vy**2) ** 0.5
         self.vx /= length
         self.vy /= length
@@ -20,13 +18,18 @@ class Player:
         self.vy = vy
         self.normalize_velocity()
 
-    def move(self) -> None:
-        self.x += self.vx * self.speed * DTIME
-        self.y += self.vy * self.speed * DTIME
+    def move(self, delta_time: float) -> None:
+        """
+        Двигает игрока по установленной ему скорости
+        """
+        self.x += self.vx * self.speed * delta_time
+        self.y += self.vy * self.speed * delta_time
 
 
 class Game:
-    def __init__(self):
+    TICK_RATE: float = 20  # 20 раз в секунду обновление состояния
+
+    def __init__(self) -> None:
         self.players: dict[int, Player] = {}
 
     def add_player(self, player_id, x: float, y: float) -> None:
@@ -37,6 +40,6 @@ class Game:
         if player_id in self.players:
             del self.players[player_id]
 
-    def update(self) -> None:
+    def tick(self, delta_time: float) -> None:
         for player in self.players.values():
-            player.move()
+            player.move(delta_time)

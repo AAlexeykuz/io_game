@@ -1,0 +1,8 @@
+Вывод тексутрок:
+{
+  "type": "texture"
+  "data": [texture_name, x, y, size_x, size_y]
+}
+texture_name - строка, название текстуры
+x, y - float, координаты на экране у клиента
+size_x, size_y - размеры картинки на экране у клиента
