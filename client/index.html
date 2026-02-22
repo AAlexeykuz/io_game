@@ -5,34 +5,8 @@
 
 <html>
   <body>
-    <input type="text" id="messageInput" placeholder="Введите сообщение" />
-    <button id="sendButton">Отправить</button>
-    <ul id="output"></ul>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-    <script>
-      const hostname = window.location.hostname;
-      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const url = new URL("/ws", `${protocol}://${hostname}`);
-      if (/^\d/.test(hostname)) url.port = "8000"; // если localtunnel (начинается не с цифры), то не ставим порт
-      const socket = new WebSocket(url);
-
-      const sendButton = document.getElementById("sendButton");
-      const inputField = document.getElementById("messageInput");
-      const outputField = document.getElementById("output");
-
-      sendButton.addEventListener("click", () => {
-        const text = inputField.value;
-        if (text !== "") {
-          socket.send(text);
-          inputField.value = "";
-        }
-      });
-
-      socket.onmessage = (event) => {
-        const newMessage = document.createElement("li");
-        newMessage.textContent = event.data;
-        outputField.appendChild(newMessage);
-      };
-    </script>
+    <script src="client.js"></script>
   </body>
 </html>

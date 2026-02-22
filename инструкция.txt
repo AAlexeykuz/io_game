@@ -5,7 +5,8 @@ python -m venv .venv
 pip install -r requirements.txt
 
 запустить сервер:
-uvicorn main:app --host 0.0.0.0 --port 8000
+для хостинга: uvicorn main:app --host 0.0.0.0 --port 8000
+локальное тестирование: uvicorn main:app --reload
 
 установить localtunnel (требуется node.js):
 npm install -g localtunnel
