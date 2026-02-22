@@ -11,23 +11,92 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 
-// encode на клиенте
-function sendMovement(x,y) {
-    if (socket.readyState === WebSocket.OPEN) {
+// Состояние клавиш
+let upPressed = false;    // W
+let downPressed = false;  // S
+let leftPressed = false;  // A
+let rightPressed = false; // D
+
+// Функция пересчета направления и отправки
+function updateDirection() {
+    let dx = 0;
+    let dy = 0;
+
+    if (leftPressed) dx -= 1;
+    if (rightPressed) dx += 1;
+    if (upPressed) dy -= 1;
+    if (downPressed) dy += 1;
+
+    sendMovement(dx, dy);
+}
+
+// Функция отправки направления на сервер
+function sendMovement(dx, dy) {
+    if (socket.readyState === WebSocket.OPEN) { // Проверка, открыто ли WebSocket-соединение
         const message = JSON.stringify({
             type: "movement",
-            data: [x, y]
-        });
+            data: [dx, dy]
+        });  // Преобразование объекта в строку JSON
         socket.send(message);
     }
 }
 
-// ПОЛУЧЕНИЕ ДАННЫХ JSON
-fetch('http://127.0.0.1:8000/')
-    .then(data => {
-        if(data == true){
-            return data.json();
-        } else if(data == false){
-            throw new Error('Ошибка!');
-        }
-    })
+// Обработчик нажатия клавиш
+document.addEventListener('keydown', (e) => {
+    const key = e.key;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(key)) {
+        e.preventDefault(); // Предотвращение прокрутки страницы
+    }
+
+    let changed = false;
+    if (key === 'w' || key === 'ArrowUp') {
+        upPressed = true;
+        changed = true;
+    }
+    if (key === 's' || key === 'ArrowDown') {
+        upPressed = true;
+        changed = true;
+    }
+    if (key === 'a' || key === 'ArrowLeft') {
+        upPressed = true;
+        changed = true;
+    }
+    if (key === 'd' || key === 'ArrowRight') {
+        upPressed = true;
+        changed = true;
+    }
+
+    if (changed) {
+        updateDirection();
+    }
+})
+
+// Обработчик отпускания клавиш
+document.addEventListener('keyup', (e) => {
+    const key = e.key;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(key)) {
+        e.preventDefault(); // Предотвращение прокрутки страницы
+    }
+
+    let changed = false;
+    if (key === 'w' || key === 'ArrowUp') {
+        upPressed = false;
+        changed = true;
+    }
+    if (key === 's' || key === 'ArrowDown') {
+        upPressed = false;
+        changed = true;
+    }
+    if (key === 'a' || key === 'ArrowLeft') {
+        upPressed = false;
+        changed = true;
+    }
+    if (key === 'd' || key === 'ArrowRight') {
+        upPressed = false;
+        changed = true;
+    }
+
+    if (changed) {
+        updateDirection();
+    }
+})
