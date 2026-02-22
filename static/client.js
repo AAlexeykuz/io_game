@@ -13,30 +13,28 @@ httpUrl.port = "8000";
 // КАНВАС
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
+// Начальная позиция персонажа
+let textureX = 0;
+let textureY = 0;
 
 // Состояние клавиш
 let upPressed = false;    // W
 let downPressed = false;  // S
 let leftPressed = false;  // A
 let rightPressed = false; // D
+const MOVE_SPEED = 1.5;
 
-// Функция пересчета направления и отправки
 function updateDirection() {
-    let dx = 0;
-    let dy = 0;
+    if (leftPressed) textureX -= MOVE_SPEED;
+    if (rightPressed) textureX += MOVE_SPEED;
+    if (upPressed) textureY -= MOVE_SPEED;
+    if (downPressed) textureY += MOVE_SPEED;
 
-    if (leftPressed) dx -= 1;
-    if (rightPressed) dx += 1;
-    if (upPressed) dy -= 1;
-    if (downPressed) dy += 1;
-
-    sendMovement(dx, dy);
+    // sendMovement(dx, dy);
 }
-
 // Функция отправки направления на сервер
 function sendMovement(dx, dy) {
-    if (socket.readyState === WebSocket.OPEN) { // Проверка, открыто ли WebSocket-соединение
+    if (socket.readyState === WebSocket.OPEN) { // Проверка, открыто ли WebSocket-соединениеx
         const message = JSON.stringify({
             movement: [dx, dy],
         });  // Преобразование объекта в строку JSON
@@ -48,7 +46,7 @@ function sendMovement(dx, dy) {
 // Обработчик нажатия клавиш
 document.addEventListener('keydown', (e) => {
     const key = e.key;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(key)) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(key)) {
         e.preventDefault(); // Предотвращение прокрутки страницы
     }
 
@@ -105,44 +103,65 @@ document.addEventListener('keyup', (e) => {
     }
 })
 
-
-
-
 const texture = document.createElement('img');
+let textureInitialized = false;
+
 function showTexture(texture_name, x, y, width) {
     
-    texture.src = `/static/textures/${texture_name}`;
+    // Инициализация (только первый раз)
+    if (!textureInitialized) {
+        texture.src = `/static/textures/${texture_name}`;
+        texture.style.position = 'absolute';
+        texture.className = 'texture';
+        document.body.appendChild(texture);
+        textureInitialized = true;
+        
+        // Добавляем обработчик мыши только один раз
+        setupMouseTracking();
+    }
     
-
-    texture.style.position = 'absolute';
+    // Обновляем позицию и размер
+    // НЕ ИСПОЛЬЗУЕТСЯ!!!
     texture.style.left = x + 'px';
     texture.style.top = y + 'px';
-
     texture.style.width = width + 'px';
+}
 
-    // ПОВОРОТ ПЕРСОНАЖА
+// Функция для анимации (постоянно обновляет позицию)
+function animate() {
+    if (textureInitialized) {
+        // Обновляем позицию на основе нажатых клавиш
+        updateDirection();
+        
+        // Применяем новую позицию к текстуре
+        texture.style.left = textureX + 'px';
+        texture.style.top = textureY + 'px';
+    }
+    requestAnimationFrame(animate);
+}
+
+function setupMouseTracking() {
     document.addEventListener('mousemove', (e) => {
         const mouseX = e.clientX;
         const mouseY = e.clientY;
         
         const rect = texture.getBoundingClientRect();
-        
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         
         const dx = mouseX - centerX;
         const dy = mouseY - centerY;
         
-        // Угол (радианы -> градусы)
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-        
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
         texture.style.rotate = angle + 'deg';
     });
-    texture.className = 'texture';
-    document.body.appendChild(texture);
-    return texture;
 }
 
+// Запускаем анимацию (ТОЛЬКО ОДИН РАЗ)
+animate();
+
+// Показываем начальную текстуру
+showTexture('coca.png', textureX, textureY, 50);
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
 fetch(httpUrl)
         .then(response => {
