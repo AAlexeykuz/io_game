@@ -9,3 +9,15 @@ const socket = new WebSocket(url);
 // КАНВАС
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+
+
+// encode на клиенте
+function sendMovement(x,y) {
+    if (socket.readyState === WebSocket.OPEN) {
+        const message = JSON.stringify({
+            type: "movement",
+            data: [x, y]
+        });
+        socket.send(message);
+    }
+}

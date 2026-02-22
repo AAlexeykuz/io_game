@@ -1,6 +1,9 @@
 создать окружение Python:
 python -m venv .venv
 
+запустить виртуальное окружение:
+.venv/Scripts/activate
+
 установить зависимости:
 pip install -r requirements.txt
 
