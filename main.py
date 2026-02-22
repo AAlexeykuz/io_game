@@ -19,7 +19,7 @@ class ConnectionManager:
     """
 
     def __init__(self) -> None:
-        self.active_connections: dict[UUID, WebSocket] = {}
+        self.websockets: dict[UUID, WebSocket] = {}
         self.game: Game = Game()
         # переменные для цикла
         self._lock = asyncio.Lock()
@@ -38,25 +38,13 @@ class ConnectionManager:
         """
         await websocket.accept()
         websocket_id = uuid4()
-        self.active_connections[websocket_id] = websocket
+        self.websockets[websocket_id] = websocket
         self.game.add_player(websocket_id, 0, 0)
         return websocket_id
 
     def disconnect(self, websocket_id: UUID) -> None:
         self.game.remove_player(websocket_id)
-        del self.active_connections[websocket_id]
-
-    def handle_client_input(
-        self,
-        client_input: str,
-        websocket_id: UUID,
-    ) -> None:
-        """Обрабатывает любой ввод со стороны клиента.
-
-        Args:
-            client_input (str): Ввод клиента
-            websocket_id (UUID): ID вебсокета клиента
-        """
+        del self.websockets[websocket_id]
 
     async def game_loop(self) -> None:
         interval = 1.0 / self.game.TICK_RATE
@@ -73,6 +61,7 @@ class ConnectionManager:
                 # просчитывание тика с нужным delta_time
                 async with self._lock:
                     self.game.tick(delta_time)
+                    await self.game.broadcast_client_info(self.websockets)
 
                 # ожидание до следующего раза
                 next_time += interval
@@ -109,18 +98,10 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     websocket_id = await manager.connect(websocket)
-    print("test")
     try:
         while True:
-            await websocket.send_json(
-                [
-                    ["coca.png", 5, 10],
-                    ["coca.png", 10, 15],
-                    ["bullet", 3, 7],
-                ]
-            )
-            manager.handle_client_input(
-                await websocket.receive_text(),
+            manager.game.handle_client_input(
+                await websocket.receive_json(),
                 websocket_id,
             )
     except WebSocketDisconnect:

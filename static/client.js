@@ -38,8 +38,7 @@ function updateDirection() {
 function sendMovement(dx, dy) {
     if (socket.readyState === WebSocket.OPEN) { // Проверка, открыто ли WebSocket-соединение
         const message = JSON.stringify({
-            type: "movement",
-            data: [dx, dy]
+            movement: [dx, dy],
         });  // Преобразование объекта в строку JSON
         socket.send(message);
     }
@@ -59,15 +58,15 @@ document.addEventListener('keydown', (e) => {
         changed = true;
     }
     if (key === 's' || key === 'ArrowDown') {
-        upPressed = true;
+        downPressed = true;
         changed = true;
     }
     if (key === 'a' || key === 'ArrowLeft') {
-        upPressed = true;
+        leftPressed = true;
         changed = true;
     }
     if (key === 'd' || key === 'ArrowRight') {
-        upPressed = true;
+        rightPressed = true;
         changed = true;
     }
 
@@ -89,15 +88,15 @@ document.addEventListener('keyup', (e) => {
         changed = true;
     }
     if (key === 's' || key === 'ArrowDown') {
-        upPressed = false;
+        downPressed = false;
         changed = true;
     }
     if (key === 'a' || key === 'ArrowLeft') {
-        upPressed = false;
+        leftPressed = false;
         changed = true;
     }
     if (key === 'd' || key === 'ArrowRight') {
-        upPressed = false;
+        rightPressed = false;
         changed = true;
     }
 
@@ -107,20 +106,39 @@ document.addEventListener('keyup', (e) => {
 })
 
 
+
+function showTexture(texture_name, x, y, width, height) {
+    const texture = document.createElement('img');
+
+    texture.src = `/static/textures/${texture_name}`;
+
+    texture.style.position = 'absolute';
+    texture.style.left = x + 'px';
+    texture.style.top = y + 'px';
+
+    texture.style.width = width + 'px';
+    texture.style.height = height + 'px';
+
+    texture.className = 'texture';
+
+    document.body.appendChild(texture);
+
+    return texture;
+}
+
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
 fetch(httpUrl)
         .then(response => {
         if (response.ok) {
             socket.onmessage = function(event){
+            document.querySelectorAll('.texture').forEach(e => e.remove());
+            
             let data = JSON.parse(event.data);
-
-
-            // ТЕСТОВОЕ СОЗДАНИЕ ПЕРСОНАЖА
-            let person = document.createElement('img')
-            person.id = 'person'
-            person.src = ''
-            document.body.appendChild(person)
-            person.src = '/static/textures/'+data[0][0]
+            
+            for (const t of data.texture) {
+                const [name, x, y, w, h] = t;
+                showTexture(name, x, y, w, h);
+            }
 
             } 
         } else {
