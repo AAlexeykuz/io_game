@@ -1,9 +1,13 @@
-// СОКЕТ
+// СОКЕТ И URL
 const hostname = window.location.hostname;
-const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-const url = new URL("/ws", `${protocol}://${hostname}`);
-if (/^\d/.test(hostname)) url.port = "8000"; // если localtunnel (начинается не с цифры), то не ставим порт
+
+const url = new URL("/ws", `ws://${hostname}`);
+url.port = "8000"
+
 const socket = new WebSocket(url);
+
+const httpUrl = new URL("/", `http://${hostname}`);
+httpUrl.port = "8000";
 
 
 // КАНВАС
@@ -104,7 +108,7 @@ document.addEventListener('keyup', (e) => {
 
 
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
-fetch('http://127.0.0.1:8000/')
+fetch(httpUrl)
         .then(response => {
         if (response.ok) {
             socket.onmessage = function(event){

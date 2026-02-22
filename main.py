@@ -109,6 +109,7 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     websocket_id = await manager.connect(websocket)
+    print("test")
     try:
         while True:
             await websocket.send_json(
