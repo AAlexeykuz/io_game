@@ -5,7 +5,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")  # Добавить после app = FastAPI()
+app.mount(
+    "/static", StaticFiles(directory="static"), name="static"
+)  # Добавить после app = FastAPI()
+
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -17,10 +20,6 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket) -> None:
         self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: str) -> None:
-        for connection in self.active_connections:
-            await connection.send_text(message)
 
 
 manager = ConnectionManager()
@@ -37,7 +36,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await manager.connect(websocket)
     try:
         while True:
+            await websocket.send_json(
+                [
+                    ["coca.png", 5, 10],
+                    ["coca.png", 10, 15],
+                    ["bullet", 3, 7],
+                ]
+            )
             message = await websocket.receive_text()
-            await manager.broadcast(message)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
