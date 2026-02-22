@@ -53,19 +53,19 @@ document.addEventListener('keydown', (e) => {
     }
 
     let changed = false;
-    if (key === 'w' || key === 'ArrowUp') {
+    if (key === 'W' || key === 'ArrowUp' || key === 'w') {
         upPressed = true;
         changed = true;
     }
-    if (key === 's' || key === 'ArrowDown') {
+    if (key === 'S' || key === 'ArrowDown' || key === 's') {
         downPressed = true;
         changed = true;
     }
-    if (key === 'a' || key === 'ArrowLeft') {
+    if (key === 'A' || key === 'ArrowLeft' || key === 'a') {
         leftPressed = true;
         changed = true;
     }
-    if (key === 'd' || key === 'ArrowRight') {
+    if (key === 'D' || key === 'ArrowRight' || key === 'd') {
         rightPressed = true;
         changed = true;
     }
@@ -83,19 +83,19 @@ document.addEventListener('keyup', (e) => {
     }
 
     let changed = false;
-    if (key === 'w' || key === 'ArrowUp') {
+    if (key === 'W' || key === 'ArrowUp' || key === 'w') {
         upPressed = false;
         changed = true;
     }
-    if (key === 's' || key === 'ArrowDown') {
+    if (key === 'S' || key === 'ArrowDown' || key === 's') {
         downPressed = false;
         changed = true;
     }
-    if (key === 'a' || key === 'ArrowLeft') {
+    if (key === 'A' || key === 'ArrowLeft' || key === 'a') {
         leftPressed = false;
         changed = true;
     }
-    if (key === 'd' || key === 'ArrowRight') {
+    if (key === 'D' || key === 'ArrowRight' || key === 'd') {
         rightPressed = false;
         changed = true;
     }
@@ -107,22 +107,39 @@ document.addEventListener('keyup', (e) => {
 
 
 
-function showTexture(texture_name, x, y, width, height) {
-    const texture = document.createElement('img');
 
+const texture = document.createElement('img');
+function showTexture(texture_name, x, y, width) {
+    
     texture.src = `/static/textures/${texture_name}`;
+    
 
     texture.style.position = 'absolute';
     texture.style.left = x + 'px';
     texture.style.top = y + 'px';
 
     texture.style.width = width + 'px';
-    texture.style.height = height + 'px';
 
+    // ПОВОРОТ ПЕРСОНАЖА
+    document.addEventListener('mousemove', (e) => {
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        
+        const rect = texture.getBoundingClientRect();
+        
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const dx = mouseX - centerX;
+        const dy = mouseY - centerY;
+        
+        // Угол (радианы -> градусы)
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        
+        texture.style.rotate = angle + 'deg';
+    });
     texture.className = 'texture';
-
     document.body.appendChild(texture);
-
     return texture;
 }
 
