@@ -22,12 +22,26 @@ function sendMovement(x,y) {
     }
 }
 
+
+
+
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
 fetch('http://127.0.0.1:8000/')
-    .then(data => {
-        if(data == true){
-            return data.json();
-        } else if(data == false){
-            throw new Error('Ошибка!');
-        }
-    })
+        .then(response => {
+        if (response.ok) {
+            socket.onmessage = function(event){
+            let data = JSON.parse(event.data);
+
+
+            // ТЕСТОВОЕ СОЗДАНИЕ ПЕРСОНАЖА
+            let person = document.createElement('img')
+            person.id = 'person'
+            person.src = ''
+            document.body.appendChild(person)
+            person.src = '/static/textures/'+data[0][0]
+
+            } 
+        } else {
+            throw new Error('Ошибка HTTP: ' + response.status);
+        }})
+    
