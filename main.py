@@ -2,9 +2,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-
+app.mount("/static", StaticFiles(directory="static"), name="static")  # Добавить после app = FastAPI()
 
 class ConnectionManager:
     def __init__(self) -> None:
