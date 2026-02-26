@@ -45,25 +45,25 @@ function sendMovement(dx, dy) {
     
 // Обработчик нажатия клавиш
 document.addEventListener('keydown', (e) => {
-    const key = e.key;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(key)) {
+    const code = e.code;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code)) {
         e.preventDefault(); // Предотвращение прокрутки страницы
     }
 
     let changed = false;
-    if (key === 'W' || key === 'ArrowUp' || key === 'w') {
+    if (code === 'KeyW' || code === 'ArrowUp') {
         upPressed = true;
         changed = true;
     }
-    if (key === 'S' || key === 'ArrowDown' || key === 's') {
+    if (code === 'KeyS' || code === 'ArrowDown') {
         downPressed = true;
         changed = true;
     }
-    if (key === 'A' || key === 'ArrowLeft' || key === 'a') {
+    if (code === 'KeyA' || code === 'ArrowLeft') {
         leftPressed = true;
         changed = true;
     }
-    if (key === 'D' || key === 'ArrowRight' || key === 'd') {
+    if (code === 'KeyD' || code === 'ArrowRight') {
         rightPressed = true;
         changed = true;
     }
@@ -75,25 +75,25 @@ document.addEventListener('keydown', (e) => {
 
 // Обработчик отпускания клавиш
 document.addEventListener('keyup', (e) => {
-    const key = e.key;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(key)) {
+    const code = e.code;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code)) {
         e.preventDefault(); // Предотвращение прокрутки страницы
     }
 
     let changed = false;
-    if (key === 'W' || key === 'ArrowUp' || key === 'w') {
+    if (code === 'KeyW' || code === 'ArrowUp') {
         upPressed = false;
         changed = true;
     }
-    if (key === 'S' || key === 'ArrowDown' || key === 's') {
+    if (code === 'KeyS' || code === 'ArrowDown') {
         downPressed = false;
         changed = true;
     }
-    if (key === 'A' || key === 'ArrowLeft' || key === 'a') {
+    if (code === 'KeyA' || code === 'ArrowLeft') {
         leftPressed = false;
         changed = true;
     }
-    if (key === 'D' || key === 'ArrowRight' || key === 'd') {
+    if (code === 'KeyD' || code === 'ArrowRight') {
         rightPressed = false;
         changed = true;
     }
@@ -110,7 +110,7 @@ function showTexture(texture_name, x, y, width) {
     
     // Инициализация (только первый раз)
     if (!textureInitialized) {
-        texture.src = `/static/textures/${texture_name}`;
+        texture.src = `../static/textures/${texture_name}`;
         texture.style.position = 'absolute';
         texture.className = 'texture';
         document.body.appendChild(texture);
@@ -120,10 +120,7 @@ function showTexture(texture_name, x, y, width) {
         setupMouseTracking();
     }
     
-    // Обновляем позицию и размер
-    // НЕ ИСПОЛЬЗУЕТСЯ!!!
-    texture.style.left = x + 'px';
-    texture.style.top = y + 'px';
+    // Обновляем размер
     texture.style.width = width + 'px';
 }
 
