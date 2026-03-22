@@ -77,7 +77,15 @@ class Game:
         # player_id пока не используется, в будущем будем для оптимизации
         return {
             "texture": [
-                ["coca.png", player.x, player.y, 50, 50]
+                [
+                    player_id,
+                    "coca.png",
+                    player.x,
+                    player.y,
+                    50,
+                    50,
+                    player.angle,
+                ]
                 for player in self.players.values()
             ],
         }
