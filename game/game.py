@@ -1,14 +1,21 @@
-from uuid import UUID
-
 from fastapi import WebSocket
+from game.ids import IDPool
 
 
-class Player:
-    speed: float = 300
-
-    def __init__(self, x: float, y: float) -> None:
+class GameObject:
+    def __init__(self, obj_id: int, x: float, y: float) -> None:
+        self.id = obj_id
         self.x: float = x
         self.y: float = y
+        self.vx = 0.0
+        self.vy = 0.0
+
+
+class Player(GameObject):
+    speed: float = 300
+
+    def __init__(self, obj_id: int, x: float, y: float) -> None:
+        super().__init__(obj_id, x, y)
         self.vx: float = 0.0  # направление движения по оси X
         self.vy: float = 0.0  # направление движения по оси Y
 
@@ -36,7 +43,7 @@ class Game:
     TICK_RATE: float = 20  # 20 раз в секунду обновление состояния
 
     def __init__(self) -> None:
-        self.players: dict[UUID, Player] = {}  # id вебсокета -> Player
+        self.players: dict[int, Player] = {}  # id вебсокета -> Player
 
     def add_player(self, player_id, x: float, y: float) -> None:
         if player_id not in self.players:
@@ -50,7 +57,7 @@ class Game:
         for player in self.players.values():
             player.move(delta_time)
 
-    def _get_client_info(self, player_id) -> dict:
+    def _get_client_info(self, player_id: int) -> dict:
         """Возвращает
 
         Args:
@@ -68,7 +75,7 @@ class Game:
         }
 
     async def broadcast_client_info(
-        self, websockets: dict[UUID, WebSocket]
+        self, websockets: dict[int, WebSocket]
     ) -> None:
         for player_id in self.players:
             if player_id not in websockets:
@@ -79,13 +86,13 @@ class Game:
     def handle_client_input(
         self,
         client_input: dict,
-        player_id: UUID,
+        player_id: int,
     ) -> None:
         """Обрабатывает любой ввод со стороны клиента.
 
         Args:
             client_input (str): Ввод клиента
-            websocket_id (UUID): ID вебсокета клиента
+            player_id (int): ID вебсокета клиента
         """
         if "movement" in client_input:
             self.players[player_id].set_velocity(*client_input["movement"])
