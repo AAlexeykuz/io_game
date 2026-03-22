@@ -2,7 +2,7 @@
 
 Вывод тексутрок:
 {
-    "texture": [[texture_name, x, y, size_x, size_y], ...]
+    "texture": [[id, texture_name, x, y, size_x, size_y, angle], ...]
 }
 texture_name - строка, название текстуры
 x, y - float, координаты на экране у клиента

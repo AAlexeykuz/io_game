@@ -1,23 +1,31 @@
 from fastapi import WebSocket
-from game.ids import IDPool
 
 
 class GameObject:
-    def __init__(self, obj_id: int, x: float, y: float) -> None:
+    def __init__(
+        self,
+        obj_id: int,
+        x: float,
+        y: float,
+        size_x: float,
+        size_y: float,
+        angle: float,
+    ) -> None:
         self.id = obj_id
         self.x: float = x
         self.y: float = y
-        self.vx = 0.0
-        self.vy = 0.0
+        self.size_x: float = size_x
+        self.size_y: float = size_y
+        self.angle: float = angle
 
 
 class Player(GameObject):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        super().__init__(obj_id, x, y)
-        self.vx: float = 0.0  # направление движения по оси X
-        self.vy: float = 0.0  # направление движения по оси Y
+        super().__init__(obj_id, x, y, 10, 10, 0)  # временно захардкодено
+        self.vx: float = 0.0
+        self.vy: float = 0.0
 
     def normalize_velocity(self) -> None:
         """Нормализует сохранённую скорость игрока"""
@@ -47,7 +55,7 @@ class Game:
 
     def add_player(self, player_id, x: float, y: float) -> None:
         if player_id not in self.players:
-            self.players[player_id] = Player(x, y)
+            self.players[player_id] = Player(player_id, x, y)
 
     def remove_player(self, player_id) -> None:
         if player_id in self.players:
