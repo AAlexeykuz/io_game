@@ -107,16 +107,17 @@ document.addEventListener('keyup', (e) => {
 
 
 
-function showTexture(texture_name, x, y, width) {
+function showTexture(id, texture_name, x, y, size_x, size_y, angle) {
     const texture = document.createElement('img');
 
+    texture.id = id;
     texture.src = `/static/textures/${texture_name}`;
 
     texture.style.position = 'absolute';
     texture.style.left = x + 'px';
     texture.style.top = y + 'px';
 
-    texture.style.width = width + 'px';
+    texture.style.width = size_x + 'px';
     texture.style.height = "auto";
 
     texture.className = 'texture';
@@ -136,8 +137,8 @@ fetch(httpUrl)
             let data = JSON.parse(event.data);
             
             for (const t of data.texture) {
-                const [name, x, y, w, h] = t;
-                showTexture(name, x, y, w, h);
+                const [id, texture_name, x, y, size_x, size_y, angle] = t;
+                showTexture(id, texture_name, x, y, size_x, size_y, angle);
             }
 
             } 
