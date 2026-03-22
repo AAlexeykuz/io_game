@@ -11,13 +11,6 @@ class GameObject:
         self.vx = 0.0
         self.vy = 0.0
 
-    def move(self, delta_time: float) -> None:
-        """
-        Двигает игрока по установленной ему скорости
-        """
-        self.x += self.vx * self.speed * delta_time
-        self.y += self.vy * self.speed * delta_time
-
 
 class Player(GameObject):
     speed: float = 300
@@ -38,6 +31,13 @@ class Player(GameObject):
         self.vx = vx
         self.vy = vy
         self.normalize_velocity()
+
+    def move(self, delta_time: float) -> None:
+        """
+        Двигает игрока по установленной ему скорости
+        """
+        self.x += self.vx * self.speed * delta_time
+        self.y += self.vy * self.speed * delta_time
 
 
 class Game:
