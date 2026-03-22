@@ -25,13 +25,6 @@ class GameObject:
         bottom = self.y - self.height
         return left, rigth, top, bottom
 
-    def get_bounds(self) -> tuple[float, float, float, float]:
-        left = self.x - self.width
-        rigth = self.x + self.width
-        top = self.y + self.height
-        bottom = self.y - self.height
-        return left, rigth, top, bottom
-
 
 class Player(GameObject):
     speed: float = 300
