@@ -1,13 +1,13 @@
 import asyncio
 import contextlib
 from pathlib import Path
-from uuid import UUID, uuid4
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from game.game import Game
+from game.ids import IDPool
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -19,7 +19,7 @@ class ConnectionManager:
     """
 
     def __init__(self) -> None:
-        self.websockets: dict[UUID, WebSocket] = {}
+        self.websockets: dict[int, WebSocket] = {}
         self.game: Game = Game()
         # переменные для цикла
         self._lock = asyncio.Lock()
@@ -27,7 +27,7 @@ class ConnectionManager:
         self._stop_event = asyncio.Event()
         self.start_loop()
 
-    async def connect(self, websocket: WebSocket) -> UUID:
+    async def connect(self, websocket: WebSocket):
         """Соединяет вебсокет и присваивает ему уникальный ID.
 
         Args:
@@ -37,12 +37,12 @@ class ConnectionManager:
             UUID: Уникальный ID этого вебсокета
         """
         await websocket.accept()
-        websocket_id = uuid4()
+        websocket_id = IDPool.new_id()
         self.websockets[websocket_id] = websocket
         self.game.add_player(websocket_id, 0, 0)
         return websocket_id
 
-    def disconnect(self, websocket_id: UUID) -> None:
+    def disconnect(self, websocket_id: int) -> None:
         self.game.remove_player(websocket_id)
         del self.websockets[websocket_id]
 
