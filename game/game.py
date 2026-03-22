@@ -23,7 +23,7 @@ class Player(GameObject):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        super().__init__(obj_id, x, y, 10, 10, 0)  # временно захардкодено
+        super().__init__(obj_id, x, y, 50, 50, 0)  # временно захардкодено
         self.vx: float = 0.0
         self.vy: float = 0.0
 
@@ -78,12 +78,12 @@ class Game:
         return {
             "texture": [
                 [
-                    player_id,
+                    player.id,
                     "coca.png",
                     player.x,
                     player.y,
-                    50,
-                    50,
+                    player.size_x,
+                    player.size_y,
                     player.angle,
                 ]
                 for player in self.players.values()
