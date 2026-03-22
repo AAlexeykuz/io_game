@@ -72,7 +72,6 @@ document.addEventListener('keydown', (e) => {
 
     if (changed) {
         updateDirection();
-        coordinate();
     }
 })
 
@@ -108,7 +107,7 @@ document.addEventListener('keyup', (e) => {
 
 
 
-function showTexture(texture_name, x, y, width, height) {
+function showTexture(texture_name, x, y, width) {
     const texture = document.createElement('img');
 
     texture.src = `/static/textures/${texture_name}`;
