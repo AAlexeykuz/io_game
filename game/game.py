@@ -1,4 +1,5 @@
 from fastapi import WebSocket
+from game.ids import IDPool
 
 
 class GameObject:
@@ -8,13 +9,6 @@ class GameObject:
         self.y: float = y
         self.vx = 0.0
         self.vy = 0.0
-
-    def move(self, delta_time: float) -> None:
-        """
-        Двигает игрока по установленной ему скорости
-        """
-        self.x += self.vx * self.speed * delta_time
-        self.y += self.vy * self.speed * delta_time
 
 
 class Player(GameObject):
@@ -36,6 +30,13 @@ class Player(GameObject):
         self.vx = vx
         self.vy = vy
         self.normalize_velocity()
+
+    def move(self, delta_time: float) -> None:
+        """
+        Двигает игрока по установленной ему скорости
+        """
+        self.x += self.vx * self.speed * delta_time
+        self.y += self.vy * self.speed * delta_time
 
 
 class Game:
