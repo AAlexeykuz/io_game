@@ -7,12 +7,23 @@ class GameObject:
         obj_id: int,
         x: float,
         y: float,
+        width: float,
+        height: float,
+        angle: float,
     ) -> None:
         self.id = obj_id
         self.x: float = x
         self.y: float = y
-        self.vx = 0.0
-        self.vy = 0.0
+        self.width: float = width
+        self.height: float = height
+        self.angle: float = angle
+
+    def get_bounds(self) -> tuple[float, float, float, float]:
+        left = self.x - self.width
+        rigth = self.x + self.width
+        top = self.y + self.height
+        bottom = self.y - self.height
+        return left, rigth, top, bottom
 
     def get_bounds(self) -> tuple[float, float, float, float]:
         left = self.x - self.width
@@ -26,9 +37,9 @@ class Player(GameObject):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        super().__init__(obj_id, x, y)
-        self.vx: float = 0.0  # направление движения по оси X
-        self.vy: float = 0.0  # направление движения по оси Y
+        super().__init__(obj_id, x, y, 50, 50, 0)  # временно захардкодено
+        self.vx: float = 0.0
+        self.vy: float = 0.0
 
     def normalize_velocity(self) -> None:
         """Нормализует сохранённую скорость игрока"""
@@ -58,7 +69,7 @@ class Game:
 
     def add_player(self, player_id, x: float, y: float) -> None:
         if player_id not in self.players:
-            self.players[player_id] = Player(x, y)
+            self.players[player_id] = Player(player_id, x, y)
 
     def remove_player(self, player_id) -> None:
         if player_id in self.players:
@@ -69,18 +80,26 @@ class Game:
             player.move(delta_time)
 
     def _get_client_info(self, player_id: int) -> dict:
-        """Возвращает
+        """Возвращает всю визуальную информацию для данного игрока
 
         Args:
-            player_id (_type_): _description_
+            player_id (int): id игрока
 
         Returns:
-            dict: _description_
+            dict: json с визуальными данными
         """
         # player_id пока не используется, в будущем будем для оптимизации
         return {
             "texture": [
-                ["coca.png", player.x, player.y, 50, 50]
+                [
+                    player.id,
+                    "coca.png",
+                    player.x,
+                    player.y,
+                    player.width,
+                    player.height,
+                    player.angle,
+                ]
                 for player in self.players.values()
             ],
         }
