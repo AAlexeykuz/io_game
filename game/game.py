@@ -7,15 +7,15 @@ class GameObject:
         obj_id: int,
         x: float,
         y: float,
-        size_x: float,
-        size_y: float,
+        width: float,
+        height: float,
         angle: float,
     ) -> None:
         self.id = obj_id
         self.x: float = x
         self.y: float = y
-        self.size_x: float = size_x
-        self.size_y: float = size_y
+        self.width: float = width
+        self.height: float = height
         self.angle: float = angle
 
 
@@ -66,13 +66,13 @@ class Game:
             player.move(delta_time)
 
     def _get_client_info(self, player_id: int) -> dict:
-        """Возвращает
+        """Возвращает всю визуальную информацию для данного игрока
 
         Args:
-            player_id (_type_): _description_
+            player_id (int): id игрока
 
         Returns:
-            dict: _description_
+            dict: json с визуальными данными
         """
         # player_id пока не используется, в будущем будем для оптимизации
         return {
@@ -82,8 +82,8 @@ class Game:
                     "coca.png",
                     player.x,
                     player.y,
-                    player.size_x,
-                    player.size_y,
+                    player.width,
+                    player.height,
                     player.angle,
                 ]
                 for player in self.players.values()
