@@ -2,12 +2,24 @@ from fastapi import WebSocket
 
 
 class GameObject:
-    def __init__(self, obj_id: int, x: float, y: float) -> None:
+    def __init__(
+        self,
+        obj_id: int,
+        x: float,
+        y: float,
+    ) -> None:
         self.id = obj_id
         self.x: float = x
         self.y: float = y
         self.vx = 0.0
         self.vy = 0.0
+
+    def get_bounds(self) -> tuple[float, float, float, float]:
+        left = self.x - self.width
+        rigth = self.x + self.width
+        top = self.y + self.height
+        bottom = self.y - self.height
+        return left, rigth, top, bottom
 
 
 class Player(GameObject):
