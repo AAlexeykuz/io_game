@@ -36,10 +36,10 @@ function updateDirection() {
 
 // Функция отправки направления на сервер
 function sendMovement(dx, dy) {
-    if (socket.readyState === WebSocket.OPEN) { // Проверка, открыто ли WebSocket-соединение
+    if (socket.readyState === WebSocket.OPEN) {
         const message = JSON.stringify({
             movement: [dx, dy],
-        });  // Преобразование объекта в строку JSON
+        }); 
         socket.send(message);
     }
 }
