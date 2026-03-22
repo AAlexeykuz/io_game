@@ -1,12 +1,27 @@
 from fastapi import WebSocket
 
 
-class Player:
-    speed: float = 300
-
-    def __init__(self, x: float, y: float) -> None:
+class GameObject:
+    def __init__(self, obj_id: int, x: float, y: float) -> None:
+        self.id = obj_id
         self.x: float = x
         self.y: float = y
+        self.vx = 0.0
+        self.vy = 0.0
+
+    def move(self, delta_time: float) -> None:
+        """
+        Двигает игрока по установленной ему скорости
+        """
+        self.x += self.vx * self.speed * delta_time
+        self.y += self.vy * self.speed * delta_time
+
+
+class Player(GameObject):
+    speed: float = 300
+
+    def __init__(self, obj_id: int, x: float, y: float) -> None:
+        super().__init__(obj_id, x, y)
         self.vx: float = 0.0  # направление движения по оси X
         self.vy: float = 0.0  # направление движения по оси Y
 
@@ -21,13 +36,6 @@ class Player:
         self.vx = vx
         self.vy = vy
         self.normalize_velocity()
-
-    def move(self, delta_time: float) -> None:
-        """
-        Двигает игрока по установленной ему скорости
-        """
-        self.x += self.vx * self.speed * delta_time
-        self.y += self.vy * self.speed * delta_time
 
 
 class Game:

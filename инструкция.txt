@@ -2,6 +2,7 @@
 python -m venv .venv
 
 запустить виртуальное окружение:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass(Разрешить системе запустить виртуальнон окружение)
 .venv/Scripts/activate
 
 установить зависимости:
