@@ -19,10 +19,10 @@ class GameObject:
         self.angle: float = angle
 
     def get_bounds(self) -> tuple[float, float, float, float]:
-        left = self.x - self.width
-        rigth = self.x + self.width
-        top = self.y + self.height
-        bottom = self.y - self.height
+        left = self.x - self.width / 2
+        rigth = self.x + self.width / 2
+        top = self.y + self.height / 2
+        bottom = self.y - self.height / 2
         return left, rigth, top, bottom
 
 
@@ -119,3 +119,47 @@ class Game:
         """
         if "movement" in client_input:
             self.players[player_id].set_velocity(*client_input["movement"])
+
+
+class CollisionManager:
+    def __init__(self) -> None:
+        pass
+
+    def rect_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
+        l1, r1, t1, b1 = obj1.get_bounds()
+        l2, r2, t2, b2 = obj2.get_bounds()
+        return not (r1 <= l2 or l1 >= r2 or b1 <= t2 or t1 >= b2)
+
+    def resolve_collision(self, obj1: GameObject, obj2: GameObject) -> None:
+        l1, r1, t1, b1 = obj1.get_bounds()
+        l2, r2, t2, b2 = obj2.get_bounds()
+        # вычисляем пересечение
+        overlap_left = r1 - l2
+        overlap_right = l1 - r2
+        overlap_top = b1 - t2
+        overlap_bottom = b2 - t1
+
+        min_overlap = min(
+            overlap_left, overlap_right, overlap_top, overlap_bottom
+        )
+
+        # Смещение по x
+        if min_overlap == (overlap_right, overlap_left):
+            if overlap_left < overlap_right:
+                dx = -overlap_left
+            else:
+                dx = overlap_right
+            dy = 0
+        # Смещение по y
+        else:
+            if overlap_top < overlap_bottom:
+                dy = -overlap_top
+            else:
+                dy = overlap_bottom
+            dx = 0
+
+        # Смещение двух объектов
+        obj1.x += dx / 2
+        obj2.x += dx / 2
+        obj1.y -= dy / 2
+        obj2.y -= dy / 2
