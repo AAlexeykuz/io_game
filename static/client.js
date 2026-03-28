@@ -105,6 +105,32 @@ document.addEventListener('keyup', (e) => {
     }
 })
 
+function getMouseAngle(mouseX, mouseY, centerX, centerY) {
+    const dx = mouseX - centerX;
+    const dy = mouseY - centerY;
+    
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    return angle;
+}
+
+
+function SetupMouseTracking() {
+    document.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const angle = getMouseAngle(e.x, e.y, centerX, centerY)
+
+        socket.send(JSON.stringify({
+            angle: angle,
+        })
+    );
+    });
+}
+
+SetupMouseTracking()
+
 
 
 function showTexture(id, texture_name, x, y, size_x, size_y, angle) {
@@ -121,6 +147,8 @@ function showTexture(id, texture_name, x, y, size_x, size_y, angle) {
     texture.style.height = "auto";
 
     texture.className = 'texture';
+
+    texture.style.rotate = angle + "deg"
 
     document.body.appendChild(texture);
 

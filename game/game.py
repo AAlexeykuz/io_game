@@ -46,6 +46,9 @@ class Player(GameObject):
         self.vy = vy
         self.normalize_velocity()
 
+    def set_angle(self, angle: float) -> None:
+        self.angle = angle
+
     def move(self, delta_time: float) -> None:
         """
         Двигает игрока по установленной ему скорости
@@ -82,7 +85,7 @@ class Game:
             dict: json с визуальными данными
         """
         # player_id пока не используется, в будущем будем для оптимизации
-        return {
+        output = {
             "texture": [
                 [
                     player.id,
@@ -96,6 +99,8 @@ class Game:
                 for player in self.players.values()
             ],
         }
+        print(output)
+        return output
 
     async def broadcast_client_info(
         self, websockets: dict[int, WebSocket]
@@ -119,6 +124,8 @@ class Game:
         """
         if "movement" in client_input:
             self.players[player_id].set_velocity(*client_input["movement"])
+        if "angle" in client_input:
+            self.players[player_id].set_angle(client_input["angle"])
 
 
 class CollisionManager:
