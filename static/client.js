@@ -138,7 +138,7 @@ function drawTexture(textureName, x, y, width, height, angle) {
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
 
 let serverStates = []; // Буфер состояний от сервера (для интерполяции)
-const INTERPOLATION_OFFSET = 75; // Задержка в мс для сглаживания
+const INTERPOLATION_OFFSET = 50; // Задержка в мс для сглаживания
 
 socket.onmessage = function(event) {
     const data = JSON.parse(event.data);

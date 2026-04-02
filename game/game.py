@@ -1,7 +1,6 @@
-import logging
+import contextlib
 
 from fastapi import WebSocket, WebSocketDisconnect
-import contextlib
 
 
 class GameObject:
@@ -61,7 +60,7 @@ class Player(GameObject):
 
 
 class Game:
-    TICK_RATE: float = 20  # 20 раз в секунду обновление состояния
+    TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
 
     def __init__(self) -> None:
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
