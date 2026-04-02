@@ -204,11 +204,11 @@ function renderInterpolatedState(startState, endState, t) {
         const endTexture = endTextureMap.get(id);
 
         if (endTexture) {
-            const [, , x2, y2, , , angle1] = endTexture;
+            const [, , x2, y2, , , angle2] = endTexture;
             
             const interpolatedX = lerp(x1, x2, t);
             const interpolatedY = lerp(y1, y2, t);
-            const interpolatedAngle = lerpAngle(angle1, angle1, t);
+            const interpolatedAngle = lerpAngle(angle1, angle2, t);
 
             drawTexture(textureName, interpolatedX, interpolatedY, width, height, interpolatedAngle);
         }
