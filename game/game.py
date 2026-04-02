@@ -1,4 +1,7 @@
-from fastapi import WebSocket
+import logging
+
+from fastapi import WebSocket, WebSocketDisconnect
+import contextlib
 
 
 class GameObject:
@@ -104,12 +107,11 @@ class Game:
     async def broadcast_client_info(
         self, websockets: dict[int, WebSocket]
     ) -> None:
-        print("test")
-        for player_id in self.players:
-            if player_id not in websockets:
-                continue
-            websocket = websockets[player_id]
-            await websocket.send_json(self._get_client_info(player_id))
+        # list() для создания копии, чтобы он не вызывал ошибку,
+        # когда websockets поменяется в случае выхода/захода игрока
+        for player_id, websocket in list(websockets.items()):
+            with contextlib.suppress(WebSocketDisconnect):
+                await websocket.send_json(self._get_client_info(player_id))
 
     def handle_client_input(
         self,

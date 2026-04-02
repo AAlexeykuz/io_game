@@ -98,11 +98,10 @@ function SetupMouseTracking() {
 
         const angle = getMouseAngle(e.x, e.y, centerX, centerY)
 
-        socket.send(JSON.stringify({
+        sendData({
             angle: angle,
         })
-    );
-    });
+    })
 }
 
 

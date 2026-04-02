@@ -1,6 +1,8 @@
 import asyncio
 import contextlib
+import logging
 from pathlib import Path
+import sys
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -9,6 +11,18 @@ from fastapi.staticfiles import StaticFiles
 from game.game import Game
 from game.ids import IDPool
 
+# logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("logs/game.log"),
+        logging.StreamHandler(),
+    ],
+)
+logging.info("New Session Started")
+
+# app fastapi
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -42,7 +56,7 @@ class ConnectionManager:
         self.game.add_player(websocket_id, 0, 0)
         return websocket_id
 
-    async def disconnect(self, websocket_id: int) -> None:
+    def disconnect(self, websocket_id: int) -> None:
         self.game.remove_player(websocket_id)
         del self.websockets[websocket_id]
 
@@ -51,8 +65,8 @@ class ConnectionManager:
         loop = asyncio.get_running_loop()
         next_time = loop.time()
         last_time = next_time
-        try:
-            while not self._stop_event.is_set():
+        while not self._stop_event.is_set():
+            try:
                 # замер времени
                 now = loop.time()
                 delta_time = now - last_time
@@ -70,8 +84,13 @@ class ConnectionManager:
                     await asyncio.sleep(sleep_for)
                 else:
                     next_time = loop.time()
-        except asyncio.CancelledError:
-            pass
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logging.error(
+                    "Unexpected exception in a game loop",
+                    exc_info=sys.exc_info(),
+                )
 
     def start_loop(self) -> None:
         if self._loop_task is None or self._loop_task.done():
@@ -105,4 +124,4 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 websocket_id,
             )
     except WebSocketDisconnect:
-        await manager.disconnect(websocket_id)
+        manager.disconnect(websocket_id)
