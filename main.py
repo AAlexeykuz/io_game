@@ -42,7 +42,7 @@ class ConnectionManager:
         self.game.add_player(websocket_id, 0, 0)
         return websocket_id
 
-    def disconnect(self, websocket_id: int) -> None:
+    async def disconnect(self, websocket_id: int) -> None:
         self.game.remove_player(websocket_id)
         del self.websockets[websocket_id]
 
@@ -105,4 +105,4 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 websocket_id,
             )
     except WebSocketDisconnect:
-        manager.disconnect(websocket_id)
+        await manager.disconnect(websocket_id)

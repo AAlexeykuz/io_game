@@ -1,11 +1,8 @@
 // СОКЕТ И URL
 const hostname = window.location.hostname;
-
 const url = new URL("/ws", `ws://${hostname}`);
 url.port = "8000"
-
 const socket = new WebSocket(url);
-
 const httpUrl = new URL("/", `http://${hostname}`);
 httpUrl.port = "8000";
 
@@ -15,95 +12,74 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 
-// Состояние клавиш
-let upPressed = false;    // W
-let downPressed = false;  // S
-let leftPressed = false;  // A
-let rightPressed = false; // D
+// настройка окна
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize()
+window.addEventListener("resize", resize);
+
+
+// Функция отправки направления на сервер
+function sendData(data) {
+    if (socket.readyState !== WebSocket.OPEN) {
+        return
+    }
+    const message = JSON.stringify(data); 
+    socket.send(message);
+}
+
+    
+// Обработчик нажатия клавиш
+const MOVEMENT_KEY_MAP = {
+    "KeyW": "up", 
+    "ArrowUp": "up",
+    
+    "KeyS": "down", 
+    "ArrowDown": "down",
+
+    "KeyA": "left",
+    "ArrowLeft": "left",
+
+    "KeyD": "right",
+    "ArrowRight": "right"
+};
+
+
+const movement = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+}
+
+
+function handleMovement(event, isPressed) {
+    const direction = MOVEMENT_KEY_MAP[event.code];
+    if (!direction) return;
+    movement[direction] = isPressed
+    updateDirection();
+}
+
+
+document.addEventListener("keydown", event => handleMovement(event, true));
+document.addEventListener("keyup", event => handleMovement(event, false));
+
 
 // Функция пересчета направления и отправки
 function updateDirection() {
     let dx = 0;
     let dy = 0;
 
-    if (leftPressed) dx -= 1;
-    if (rightPressed) dx += 1;
-    if (upPressed) dy -= 1;
-    if (downPressed) dy += 1;
+    if (movement.left) dx -= 1;
+    if (movement.right) dx += 1;
+    if (movement.up) dy -= 1;
+    if (movement.down) dy += 1;
 
-    sendMovement(dx, dy);
+    sendData({movement: [dx, dy]});
 }
 
-// Функция отправки направления на сервер
-function sendMovement(dx, dy) {
-    if (socket.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({
-            movement: [dx, dy],
-        }); 
-        socket.send(message);
-    }
-}
-
-    
-// Обработчик нажатия клавиш
-document.addEventListener('keydown', (e) => {
-    const code = e.code;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code)) {
-        e.preventDefault(); // Предотвращение прокрутки страницы
-    }
-
-    let changed = false;
-    if (code === 'KeyW' || code === 'ArrowUp') {
-        upPressed = true;
-        changed = true;
-    }
-    if (code === 'KeyS' || code === 'ArrowDown') {
-        downPressed = true;
-        changed = true;
-    }
-    if (code === 'KeyA' || code === 'ArrowLeft') {
-        leftPressed = true;
-        changed = true;
-    }
-    if (code === 'KeyD' || code === 'ArrowRight') {
-        rightPressed = true;
-        changed = true;
-    }
-
-    if (changed) {
-        updateDirection();
-    }
-})
-
-// Обработчик отпускания клавиш
-document.addEventListener('keyup', (e) => {
-    const code = e.code;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(code)) {
-        e.preventDefault(); // Предотвращение прокрутки страницы
-    }
-
-    let changed = false;
-    if (code === 'KeyW' || code === 'ArrowUp') {
-        upPressed = false;
-        changed = true;
-    }
-    if (code === 'KeyS' || code === 'ArrowDown') {
-        downPressed = false;
-        changed = true;
-    }
-    if (code === 'KeyA' || code === 'ArrowLeft') {
-        leftPressed = false;
-        changed = true;
-    }
-    if (code === 'KeyD' || code === 'ArrowRight') {
-        rightPressed = false;
-        changed = true;
-    }
-
-    if (changed) {
-        updateDirection();
-    }
-})
 
 function getMouseAngle(mouseX, mouseY, centerX, centerY) {
     const dx = mouseX - centerX;
@@ -115,7 +91,7 @@ function getMouseAngle(mouseX, mouseY, centerX, centerY) {
 
 
 function SetupMouseTracking() {
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener("mousemove", (e) => {
         const rect = canvas.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -129,47 +105,39 @@ function SetupMouseTracking() {
     });
 }
 
+
 SetupMouseTracking()
 
+const textureCache = {};
 
 
-function showTexture(id, texture_name, x, y, size_x, size_y, angle) {
-    const texture = document.createElement('img');
-
-    texture.id = id;
-    texture.src = `/static/textures/${texture_name}`;
-
-    texture.style.position = 'absolute';
-    texture.style.left = x + 'px';
-    texture.style.top = y + 'px';
-
-    texture.style.width = size_x + 'px';
-    texture.style.height = "auto";
-
-    texture.className = 'texture';
-
-    texture.style.rotate = angle + "deg"
-
-    document.body.appendChild(texture);
-
-    return texture;
+function getTexture(name) {
+    if (!textureCache[name]) {
+        const img = new Image();
+        img.src = `/static/textures/${name}`;
+        textureCache[name] = img;
+    }
+    return textureCache[name];
 }
 
-// ПОЛУЧЕНИЕ ДАННЫХ JSON
-fetch(httpUrl)
-        .then(response => {
-        if (response.ok) {
-            socket.onmessage = function(event){
-            document.querySelectorAll('.texture').forEach(e => e.remove());
-            
-            let data = JSON.parse(event.data);
-            
-            for (const t of data.texture) {
-                const [id, texture_name, x, y, size_x, size_y, angle] = t;
-                showTexture(id, texture_name, x, y, size_x, size_y, angle);
-            }
 
-            } 
-        } else {
-            throw new Error('Ошибка HTTP: ' + response.status);
-        }})
+function drawTexture(texture_name, x, y, size_x, size_y, angle) {
+    const img = getTexture(texture_name);
+    if (!img.complete) return;
+    ctx.save();
+    ctx.translate(x + size_x / 2, y + size_y / 2);
+    ctx.rotate(angle * Math.PI / 180);
+    ctx.drawImage(img, -size_x / 2, -size_y / 2, size_x, size_y);
+    ctx.restore();
+}
+
+
+// ПОЛУЧЕНИЕ ДАННЫХ JSON
+socket.onmessage = function(event) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let data = JSON.parse(event.data);
+    for (const t of data.texture) {
+        const [id, texture_name, x, y, size_x, size_y, angle] = t;
+        drawTexture(texture_name, x, y, size_x, size_y, angle);
+    }
+} 

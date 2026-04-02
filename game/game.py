@@ -11,12 +11,12 @@ class GameObject:
         height: float,
         angle: float,
     ) -> None:
-        self.id = obj_id
-        self.x: float = x
-        self.y: float = y
-        self.width: float = width
-        self.height: float = height
-        self.angle: float = angle
+        self.id: int = obj_id
+        self.x: float = x  # игровые единицы
+        self.y: float = y  # игровые единицы
+        self.width: float = width  # игровые единицы
+        self.height: float = height  # игровые единицы
+        self.angle: float = angle  # радианы
 
     def get_bounds(self) -> tuple[float, float, float, float]:
         left = self.x - self.width / 2
@@ -25,12 +25,15 @@ class GameObject:
         bottom = self.y - self.height / 2
         return left, rigth, top, bottom
 
+    def set_angle(self, angle: float) -> None:
+        self.angle = angle
+
 
 class Player(GameObject):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        super().__init__(obj_id, x, y, 50, 50, 0)  # временно захардкодено
+        super().__init__(obj_id, x, y, 50, 150, 0)  # временно захардкодено
         self.vx: float = 0.0
         self.vy: float = 0.0
 
@@ -45,9 +48,6 @@ class Player(GameObject):
         self.vx = vx
         self.vy = vy
         self.normalize_velocity()
-
-    def set_angle(self, angle: float) -> None:
-        self.angle = angle
 
     def move(self, delta_time: float) -> None:
         """
@@ -84,7 +84,7 @@ class Game:
         Returns:
             dict: json с визуальными данными
         """
-        # player_id пока не используется, в будущем будем для оптимизации
+        # player_id пока не используется, в будущем будем
         output = {
             "texture": [
                 [
@@ -99,12 +99,12 @@ class Game:
                 for player in self.players.values()
             ],
         }
-        print(output)
         return output
 
     async def broadcast_client_info(
         self, websockets: dict[int, WebSocket]
     ) -> None:
+        print("test")
         for player_id in self.players:
             if player_id not in websockets:
                 continue
