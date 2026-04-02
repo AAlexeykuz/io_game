@@ -121,6 +121,36 @@ function getTexture(name) {
     return textureCache[name];
 }
 
+
+
+
+function drawTexture(textureName, x, y, width, height, angle) {
+    const img = getTexture(textureName);
+    if (!img.complete) return;
+    ctx.save();
+    ctx.translate(x + width / 2, y + height / 2);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -width / 2, -height / 2, width, height);
+    ctx.restore();
+}
+
+
+// ПОЛУЧЕНИЕ ДАННЫХ JSON
+
+let serverStates = []; // Буфер состояний от сервера (для интерполяции)
+const INTERPOLATION_OFFSET = 75; // Задержка в мс для сглаживания
+
+socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    serverStates.push({
+        timestamp: Date.now(),
+        texture: data.texture
+    });
+    if (serverStates.length > 20) serverStates.shift();
+} 
+
+// ИНТЕРПОЛЯЦИЯ, АНИМАЦИЯ
+
 function lerp(start, end, t) {
     return start + (end - start) * t;
 }
@@ -131,24 +161,60 @@ function lerpAngle(a, b, t) {
     return a + delta * t;
 }
 
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const now = Date.now();
+    const renderTime = now - INTERPOLATION_OFFSET; // время, для которого рендерится игра
 
-function drawTexture(texture_name, x, y, size_x, size_y, angle) {
-    const img = getTexture(texture_name);
-    if (!img.complete) return;
-    ctx.save();
-    ctx.translate(x + size_x / 2, y + size_y / 2);
-    ctx.rotate(angle);
-    ctx.drawImage(img, -size_x / 2, -size_y / 2, size_x, size_y);
-    ctx.restore();
+    if (serverStates.length >= 2) {
+        let startState = null;
+        let endState = null;
+
+        // Нахождение двух состояний между renderTime
+        for (let i = 0; i < serverStates.length - 1; i++) {
+            if (serverStates[i].timestamp <= renderTime && renderTime <= serverStates[i+1].timestamp) {
+                startState = serverStates[i];
+                endState = serverStates[i+1];
+                break;
+            }
+        }
+
+        // Интерполяция по этим состоянием
+        if (startState && endState) {
+            const total = endState.timestamp - startState.timestamp;
+            const portion = renderTime - startState.timestamp;
+            const t = portion / total; // Коэффициент интерполяции (от 0 до 1)
+            renderInterpolatedState(startState, endState, t);
+        } else if (serverStates.length > 0) {
+            // Если данных не хватает, рисуем последнее известное состояние
+            const last = serverStates[serverStates.length - 1];
+            renderInterpolatedState(last, last, 0);
+        }
+    }
+
+    requestAnimationFrame(gameLoop);
 }
 
+function renderInterpolatedState(startState, endState, t) {
+    const endTextureMap = new Map(endState.texture.map(e => [e[0], e]));
 
-// ПОЛУЧЕНИЕ ДАННЫХ JSON
-socket.onmessage = function(event) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let data = JSON.parse(event.data);
-    for (const t of data.texture) {
-        const [id, texture_name, x, y, size_x, size_y, angle] = t;
-        drawTexture(texture_name, x, y, size_x, size_y, angle);
+    for (const startTexture of startState.texture) {
+        const [id, textureName, x1, y1, width, height, angle1] = startTexture;
+        const endTexture = endTextureMap.get(id);
+
+        if (endTexture) {
+            const [, , x2, y2, , , angle1] = endTexture;
+            
+            const interpolatedX = lerp(x1, x2, t);
+            const interpolatedY = lerp(y1, y2, t);
+            const interpolatedAngle = lerpAngle(angle1, angle1, t);
+
+            drawTexture(textureName, interpolatedX, interpolatedY, width, height, interpolatedAngle);
+        }
     }
-} 
+}
+
+console.log("Hello world2")
+
+requestAnimationFrame(gameLoop);

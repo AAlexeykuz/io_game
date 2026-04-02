@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -13,17 +12,12 @@ from game.game import Game
 from game.ids import IDPool
 
 # logging
-
-log_dir = "logs"
-log_file = os.path.join(log_dir, "game.log")
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
+Path("logs").mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(log_file),
+        logging.FileHandler("logs/game.log"),
         logging.StreamHandler(),
     ],
 )
@@ -124,6 +118,7 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     websocket_id = await manager.connect(websocket)
+    print("connection")
     try:
         while True:
             manager.game.handle_client_input(
