@@ -36,6 +36,7 @@ class Player(GameObject):
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
         super().__init__(obj_id, x, y, 50, 150, 0)  # временно захардкодено
+        self.texture = "coca.png" if obj_id % 2 == 0 else "sprite.png"
         self.vx: float = 0.0
         self.vy: float = 0.0
 
@@ -87,11 +88,11 @@ class Game:
             dict: json с визуальными данными
         """
         # player_id пока не используется, в будущем будем
-        output = {
+        return {
             "texture": [
                 [
                     player.id,
-                    "coca.png",
+                    player.texture,
                     player.x,
                     player.y,
                     player.width,
@@ -101,7 +102,6 @@ class Game:
                 for player in self.players.values()
             ],
         }
-        return output
 
     async def broadcast_client_info(
         self, websockets: dict[int, WebSocket]
