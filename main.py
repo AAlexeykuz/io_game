@@ -1,8 +1,9 @@
 import asyncio
 import contextlib
 import logging
-from pathlib import Path
+import os
 import sys
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -12,11 +13,17 @@ from game.game import Game
 from game.ids import IDPool
 
 # logging
+
+log_dir = "logs"
+log_file = os.path.join(log_dir, "game.log")
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler("logs/game.log"),
+        logging.FileHandler(log_file),
         logging.StreamHandler(),
     ],
 )
