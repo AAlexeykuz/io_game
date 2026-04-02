@@ -6,10 +6,12 @@ const socket = new WebSocket(url);
 const httpUrl = new URL("/", `http://${hostname}`);
 httpUrl.port = "8000";
 
-
 // КАНВАС
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+
+// МАТЕМАТИКА
+const {PI, atan2} = Math
 
 
 // настройка окна
@@ -85,7 +87,7 @@ function getMouseAngle(mouseX, mouseY, centerX, centerY) {
     const dx = mouseX - centerX;
     const dy = mouseY - centerY;
     
-    const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    const angle = atan2(dy, dx) + PI / 2;
     return angle;
 }
 
@@ -119,13 +121,23 @@ function getTexture(name) {
     return textureCache[name];
 }
 
+function lerp(start, end, t) {
+    return start + (end - start) * t;
+}
+
+// lerp для углов, чтобы не поворачивал на 360 градусов
+function lerpAngle(a, b, t) {
+    const delta = ((b - a + PI) % (2 * PI) + 2 * PI) % (2 * PI) - PI;
+    return a + delta * t;
+}
+
 
 function drawTexture(texture_name, x, y, size_x, size_y, angle) {
     const img = getTexture(texture_name);
     if (!img.complete) return;
     ctx.save();
     ctx.translate(x + size_x / 2, y + size_y / 2);
-    ctx.rotate(angle * Math.PI / 180);
+    ctx.rotate(angle);
     ctx.drawImage(img, -size_x / 2, -size_y / 2, size_x, size_y);
     ctx.restore();
 }
