@@ -1,4 +1,7 @@
+import asyncio
 import contextlib
+import logging
+import sys
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -37,6 +40,7 @@ class Player(GameObject):
     def __init__(self, obj_id: int, x: float, y: float) -> None:
         super().__init__(obj_id, x, y, 50, 150, 0)  # временно захардкодено
         self.texture = "coca.png" if obj_id % 2 == 0 else "sprite.png"
+
         self.vx: float = 0.0
         self.vy: float = 0.0
 
@@ -63,8 +67,13 @@ class Player(GameObject):
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
 
-    def __init__(self) -> None:
+    def __init__(self, websockets: dict[int, WebSocket]) -> None:
+        self.websockets = websockets  # websockets от менеджера соединений
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
+        # переменные для цикла
+        self._lock = asyncio.Lock()
+        self._loop_task: asyncio.Task | None = None
+        self._stop_event = asyncio.Event()
 
     def add_player(self, player_id, x: float, y: float) -> None:
         if player_id not in self.players:
@@ -74,7 +83,19 @@ class Game:
         if player_id in self.players:
             del self.players[player_id]
 
-    def tick(self, delta_time: float) -> None:
+    def start_loop(self) -> None:
+        if self._loop_task is None or self._loop_task.done():
+            self._stop_event.clear()
+            self._loop_task = asyncio.create_task(self._game_loop())
+
+    async def stop_loop(self) -> None:
+        if self._loop_task and not self._loop_task.done():
+            self._stop_event.set()
+            self._loop_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._loop_task
+
+    def _tick(self, delta_time: float) -> None:
         for player in self.players.values():
             player.move(delta_time)
 
@@ -103,7 +124,7 @@ class Game:
             ],
         }
 
-    async def broadcast_client_info(
+    async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
     ) -> None:
         # list() для создания копии, чтобы он не вызывал ошибку,
@@ -127,6 +148,39 @@ class Game:
             self.players[player_id].set_velocity(*client_input["movement"])
         if "angle" in client_input:
             self.players[player_id].set_angle(client_input["angle"])
+
+    async def _game_loop(self) -> None:
+        """Главный цикл игры"""
+        interval = 1.0 / self.TICK_RATE
+        loop = asyncio.get_running_loop()
+        next_time = loop.time()
+        last_time = next_time
+        while not self._stop_event.is_set():
+            try:
+                # замер времени
+                now = loop.time()
+                delta_time = now - last_time
+                last_time = now
+
+                # просчитывание тика с нужным delta_time
+                async with self._lock:
+                    self._tick(delta_time)
+                    await self._broadcast_client_info(self.websockets)
+
+                # ожидание до следующего раза
+                next_time += interval
+                sleep_for = next_time - loop.time()
+                if sleep_for > 0:
+                    await asyncio.sleep(sleep_for)
+                else:
+                    next_time = loop.time()
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logging.error(
+                    "Unexpected exception in a game loop",
+                    exc_info=sys.exc_info(),
+                )
 
 
 class CollisionManager:
