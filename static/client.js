@@ -1,146 +1,220 @@
 // СОКЕТ И URL
 const hostname = window.location.hostname;
-
 const url = new URL("/ws", `ws://${hostname}`);
 url.port = "8000"
-
 const socket = new WebSocket(url);
-
 const httpUrl = new URL("/", `http://${hostname}`);
 httpUrl.port = "8000";
-
 
 // КАНВАС
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// МАТЕМАТИКА
+const {PI, atan2} = Math
 
-// Состояние клавиш
-let upPressed = false;    // W
-let downPressed = false;  // S
-let leftPressed = false;  // A
-let rightPressed = false; // D
+
+// настройка окна
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize()
+window.addEventListener("resize", resize);
+
+
+// Функция отправки направления на сервер
+function sendData(data) {
+    if (socket.readyState !== WebSocket.OPEN) {
+        return
+    }
+    const message = JSON.stringify(data); 
+    socket.send(message);
+}
+
+    
+// Обработчик нажатия клавиш
+const MOVEMENT_KEY_MAP = {
+    "KeyW": "up", 
+    "ArrowUp": "up",
+    
+    "KeyS": "down", 
+    "ArrowDown": "down",
+
+    "KeyA": "left",
+    "ArrowLeft": "left",
+
+    "KeyD": "right",
+    "ArrowRight": "right"
+};
+
+
+const movement = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+}
+
+
+function handleMovement(event, isPressed) {
+    const direction = MOVEMENT_KEY_MAP[event.code];
+    if (!direction) return;
+    movement[direction] = isPressed
+    updateDirection();
+}
+
+
+document.addEventListener("keydown", event => handleMovement(event, true));
+document.addEventListener("keyup", event => handleMovement(event, false));
+
 
 // Функция пересчета направления и отправки
 function updateDirection() {
     let dx = 0;
     let dy = 0;
 
-    if (leftPressed) dx -= 1;
-    if (rightPressed) dx += 1;
-    if (upPressed) dy -= 1;
-    if (downPressed) dy += 1;
+    if (movement.left) dx -= 1;
+    if (movement.right) dx += 1;
+    if (movement.up) dy -= 1;
+    if (movement.down) dy += 1;
 
-    sendMovement(dx, dy);
+    sendData({movement: [dx, dy]});
 }
 
-// Функция отправки направления на сервер
-function sendMovement(dx, dy) {
-    if (socket.readyState === WebSocket.OPEN) { // Проверка, открыто ли WebSocket-соединение
-        const message = JSON.stringify({
-            movement: [dx, dy],
-        });  // Преобразование объекта в строку JSON
-        socket.send(message);
-    }
-}
 
+function getMouseAngle(mouseX, mouseY, centerX, centerY) {
+    const dx = mouseX - centerX;
+    const dy = mouseY - centerY;
     
-// Обработчик нажатия клавиш
-document.addEventListener('keydown', (e) => {
-    const key = e.key;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(key)) {
-        e.preventDefault(); // Предотвращение прокрутки страницы
-    }
-
-    let changed = false;
-    if (key === 'w' || key === 'ArrowUp') {
-        upPressed = true;
-        changed = true;
-    }
-    if (key === 's' || key === 'ArrowDown') {
-        downPressed = true;
-        changed = true;
-    }
-    if (key === 'a' || key === 'ArrowLeft') {
-        leftPressed = true;
-        changed = true;
-    }
-    if (key === 'd' || key === 'ArrowRight') {
-        rightPressed = true;
-        changed = true;
-    }
-
-    if (changed) {
-        updateDirection();
-    }
-})
-
-// Обработчик отпускания клавиш
-document.addEventListener('keyup', (e) => {
-    const key = e.key;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(key)) {
-        e.preventDefault(); // Предотвращение прокрутки страницы
-    }
-
-    let changed = false;
-    if (key === 'w' || key === 'ArrowUp') {
-        upPressed = false;
-        changed = true;
-    }
-    if (key === 's' || key === 'ArrowDown') {
-        downPressed = false;
-        changed = true;
-    }
-    if (key === 'a' || key === 'ArrowLeft') {
-        leftPressed = false;
-        changed = true;
-    }
-    if (key === 'd' || key === 'ArrowRight') {
-        rightPressed = false;
-        changed = true;
-    }
-
-    if (changed) {
-        updateDirection();
-    }
-})
-
-
-
-function showTexture(texture_name, x, y, width, height) {
-    const texture = document.createElement('img');
-
-    texture.src = `/static/textures/${texture_name}`;
-
-    texture.style.position = 'absolute';
-    texture.style.left = x + 'px';
-    texture.style.top = y + 'px';
-
-    texture.style.width = width + 'px';
-    texture.style.height = height + 'px';
-
-    texture.className = 'texture';
-
-    document.body.appendChild(texture);
-
-    return texture;
+    const angle = atan2(dy, dx) + PI / 2;
+    return angle;
 }
+
+
+function SetupMouseTracking() {
+    document.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const angle = getMouseAngle(e.x, e.y, centerX, centerY)
+
+        sendData({
+            angle: angle,
+        })
+    })
+}
+
+
+SetupMouseTracking()
+
+const textureCache = {};
+
+
+function getTexture(name) {
+    if (!textureCache[name]) {
+        const img = new Image();
+        img.src = `/static/textures/${name}`;
+        textureCache[name] = img;
+    }
+    return textureCache[name];
+}
+
+
+
+
+function drawTexture(textureName, x, y, width, height, angle) {
+    const img = getTexture(textureName);
+    if (!img.complete) return;
+    ctx.save();
+    ctx.translate(x + width / 2, y + height / 2);
+    ctx.rotate(angle);
+    ctx.drawImage(img, -width / 2, -height / 2, width, height);
+    ctx.restore();
+}
+
 
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
-fetch(httpUrl)
-        .then(response => {
-        if (response.ok) {
-            socket.onmessage = function(event){
-            document.querySelectorAll('.texture').forEach(e => e.remove());
-            
-            let data = JSON.parse(event.data);
-            
-            for (const t of data.texture) {
-                const [name, x, y, w, h] = t;
-                showTexture(name, x, y, w, h);
-            }
 
-            } 
-        } else {
-            throw new Error('Ошибка HTTP: ' + response.status);
-        }})
+let serverStates = []; // Буфер состояний от сервера (для интерполяции)
+const INTERPOLATION_OFFSET = 50; // Задержка в мс для сглаживания
+
+socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    serverStates.push({
+        timestamp: Date.now(),
+        texture: data.texture
+    });
+    if (serverStates.length > 20) serverStates.shift();
+} 
+
+// ИНТЕРПОЛЯЦИЯ, АНИМАЦИЯ
+
+function lerp(start, end, t) {
+    return start + (end - start) * t;
+}
+
+// lerp для углов, чтобы не поворачивал на 360 градусов
+function lerpAngle(a, b, t) {
+    const delta = ((b - a + PI) % (2 * PI) + 2 * PI) % (2 * PI) - PI;
+    return a + delta * t;
+}
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const now = Date.now();
+    const renderTime = now - INTERPOLATION_OFFSET; // время, для которого рендерится игра
+
+    if (serverStates.length >= 2) {
+        let startState = null;
+        let endState = null;
+
+        // Нахождение двух состояний между renderTime
+        for (let i = 0; i < serverStates.length - 1; i++) {
+            if (serverStates[i].timestamp <= renderTime && renderTime <= serverStates[i+1].timestamp) {
+                startState = serverStates[i];
+                endState = serverStates[i+1];
+                break;
+            }
+        }
+
+        // Интерполяция по этим состоянием
+        if (startState && endState) {
+            const total = endState.timestamp - startState.timestamp;
+            const portion = renderTime - startState.timestamp;
+            const t = portion / total; // Коэффициент интерполяции (от 0 до 1)
+            renderInterpolatedState(startState, endState, t);
+        } else if (serverStates.length > 0) {
+            // Если данных не хватает, рисуем последнее известное состояние
+            const last = serverStates[serverStates.length - 1];
+            renderInterpolatedState(last, last, 0);
+        }
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+function renderInterpolatedState(startState, endState, t) {
+    const endTextureMap = new Map(endState.texture.map(e => [e[0], e]));
+
+    for (const startTexture of startState.texture) {
+        const [id, textureName, x1, y1, width, height, angle1] = startTexture;
+        const endTexture = endTextureMap.get(id);
+
+        if (endTexture) {
+            const [, , x2, y2, , , angle2] = endTexture;
+            
+            const interpolatedX = lerp(x1, x2, t);
+            const interpolatedY = lerp(y1, y2, t);
+            const interpolatedAngle = lerpAngle(angle1, angle2, t);
+
+            drawTexture(textureName, interpolatedX, interpolatedY, width, height, interpolatedAngle);
+        }
+    }
+}
+
+console.log("Hello world2")
+
+requestAnimationFrame(gameLoop);

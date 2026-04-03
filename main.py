@@ -1,14 +1,26 @@
-import asyncio
-import contextlib
+import logging
 from pathlib import Path
-from uuid import UUID, uuid4
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from game.game import Game
+from game.ids import IDPool
 
+# logging
+Path("logs").mkdir(parents=True, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("logs/game.log"),
+        logging.StreamHandler(),
+    ],
+)
+logging.info("New Session Started")
+
+# app fastapi
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -19,15 +31,11 @@ class ConnectionManager:
     """
 
     def __init__(self) -> None:
-        self.websockets: dict[UUID, WebSocket] = {}
-        self.game: Game = Game()
-        # переменные для цикла
-        self._lock = asyncio.Lock()
-        self._loop_task: asyncio.Task | None = None
-        self._stop_event = asyncio.Event()
-        self.start_loop()
+        self.websockets: dict[int, WebSocket] = {}
+        self.game: Game = Game(self.websockets)
+        self.game.start_loop()
 
-    async def connect(self, websocket: WebSocket) -> UUID:
+    async def connect(self, websocket: WebSocket):
         """Соединяет вебсокет и присваивает ему уникальный ID.
 
         Args:
@@ -37,53 +45,14 @@ class ConnectionManager:
             UUID: Уникальный ID этого вебсокета
         """
         await websocket.accept()
-        websocket_id = uuid4()
+        websocket_id = IDPool.new_id()
         self.websockets[websocket_id] = websocket
         self.game.add_player(websocket_id, 0, 0)
         return websocket_id
 
-    def disconnect(self, websocket_id: UUID) -> None:
+    def disconnect(self, websocket_id: int) -> None:
         self.game.remove_player(websocket_id)
         del self.websockets[websocket_id]
-
-    async def game_loop(self) -> None:
-        interval = 1.0 / self.game.TICK_RATE
-        loop = asyncio.get_running_loop()
-        next_time = loop.time()
-        last_time = next_time
-        try:
-            while not self._stop_event.is_set():
-                # замер времени
-                now = loop.time()
-                delta_time = now - last_time
-                last_time = now
-
-                # просчитывание тика с нужным delta_time
-                async with self._lock:
-                    self.game.tick(delta_time)
-                    await self.game.broadcast_client_info(self.websockets)
-
-                # ожидание до следующего раза
-                next_time += interval
-                sleep_for = next_time - loop.time()
-                if sleep_for > 0:
-                    await asyncio.sleep(sleep_for)
-                else:
-                    next_time = loop.time()
-        except asyncio.CancelledError:
-            pass
-
-    def start_loop(self) -> None:
-        if self._loop_task is None or self._loop_task.done():
-            self._stop_event.clear()
-            self._loop_task = asyncio.create_task(self.game_loop())
-
-    async def stop_loop(self) -> None:
-        if self._loop_task and not self._loop_task.done():
-            self._stop_event.set()
-            self._loop_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._loop_task
 
 
 manager = ConnectionManager()
@@ -98,6 +67,7 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     websocket_id = await manager.connect(websocket)
+    logging.info(f"Client {websocket_id} connected")
     try:
         while True:
             manager.game.handle_client_input(
@@ -106,3 +76,4 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             )
     except WebSocketDisconnect:
         manager.disconnect(websocket_id)
+        logging.info(f"Client {websocket_id} disconnected")
