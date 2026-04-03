@@ -130,7 +130,7 @@ class Game:
         # list() для создания копии, чтобы он не вызывал ошибку,
         # когда websockets поменяется в случае выхода/захода игрока
         for player_id, websocket in list(websockets.items()):
-            with contextlib.suppress(WebSocketDisconnect):
+            with contextlib.suppress(WebSocketDisconnect, RuntimeError):
                 await websocket.send_json(self._get_client_info(player_id))
 
     def handle_client_input(
@@ -155,8 +155,8 @@ class Game:
         loop = asyncio.get_running_loop()
         next_time = loop.time()
         last_time = next_time
-        while not self._stop_event.is_set():
-            try:
+        try:
+            while not self._stop_event.is_set():
                 # замер времени
                 now = loop.time()
                 delta_time = now - last_time
@@ -174,13 +174,13 @@ class Game:
                     await asyncio.sleep(sleep_for)
                 else:
                     next_time = loop.time()
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                logging.error(
-                    "Unexpected exception in a game loop",
-                    exc_info=sys.exc_info(),
-                )
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logging.error(
+                "Unexpected exception in a game loop",
+                exc_info=sys.exc_info(),
+            )
 
 
 class CollisionManager:

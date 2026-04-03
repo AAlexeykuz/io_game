@@ -67,7 +67,7 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     websocket_id = await manager.connect(websocket)
-    print("connection")
+    logging.info(f"Client {websocket_id} connected")
     try:
         while True:
             manager.game.handle_client_input(
@@ -76,3 +76,4 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             )
     except WebSocketDisconnect:
         manager.disconnect(websocket_id)
+        logging.info(f"Client {websocket_id} disconnected")
