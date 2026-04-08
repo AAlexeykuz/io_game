@@ -108,21 +108,31 @@ class Game:
         Returns:
             dict: json с визуальными данными
         """
-        # player_id пока не используется, в будущем будем
-        return {
-            "texture": [
+        player = self.players.get(player_id)
+        if not player:
+            return {"texture": []}
+        # центр камеры - позиция игрока, для которого предназначены данные
+        cam_x = player.x
+        cam_y = player.y
+
+        relative_objects = []
+        for player in self.players.values():
+            # вычисление положение объекта, относительно текущего игрока
+            rel_x = player.x - cam_x
+            rel_y = player.y - cam_y
+            relative_objects.append(
                 [
                     player.id,
                     player.texture,
-                    player.x,
-                    player.y,
+                    rel_x,  # относительная координата по x
+                    rel_y,  # относительная координата по y
                     player.width,
                     player.height,
                     player.angle,
                 ]
-                for player in self.players.values()
-            ],
-        }
+            )
+
+        return {"texture": relative_objects}
 
     async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
