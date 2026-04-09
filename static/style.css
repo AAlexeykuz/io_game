@@ -9,3 +9,66 @@ canvas {
   display: block;
   background-color: gray;
 }
+.button_menu{
+  
+  width: 260px;
+  height: 100px;
+  background-color: rgb(16, 0, 241);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 3px;
+}
+a{
+  text-decoration: none;
+  color: rgb(255, 255, 255);
+}
+.menu{
+  font-size: 17px;
+  font-family: "Press Start 2P", system-ui;
+  font-weight: 400;
+  font-style: normal;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.container{
+  display: flex;
+  gap: 15px;
+}
+
+.decor_img {
+  position: absolute;
+  width: clamp(40px, 5vw, 90px);
+  height: auto;
+}
+
+.img1 { top: 5%; left: 2%; }
+.img2 { top: 80%; left: 3%; }
+.img3 { top: 50%; left: 15%; }
+.img4 { top: 5%; left: 85%; }
+.img5 { top: 40%; left: 92%; }
+.img6 { top: 75%; left: 70%; }
+.img7 { top: 20%; left: 48%; }
+.img8 { top: 90%; left: 90%; }
+
+@media (max-width: 1024px) {
+  .decor_img { width: 50px; }
+  .img2 { top: 85%; left: 1%; }
+  .img5 { left: 88%; }
+  .img8 { left: 85%; }
+}
+
+@media (max-width: 768px) {
+  .decor_img { width: 35px; opacity: 0.6; }
+  .img3, .img7 { display: none; } 
+  .img1 { top: 3%; left: 1%; }
+  .img2 { top: 90%; left: 1%; }
+  .img4 { top: 3%; left: 85%; }
+  .img5 { top: 50%; left: 88%; }
+  .img6 { top: 85%; left: 60%; }
+  .img8 { top: 95%; left: 80%; }
+}
