@@ -6,6 +6,17 @@ import sys
 from fastapi import WebSocket, WebSocketDisconnect
 
 
+class IDPool:
+    """Класс, возвращающий id как целые числа последовательно"""
+
+    def __init__(self) -> None:
+        self._last_id: int = -1
+
+    def get_new_id(self) -> int:
+        self._last_id += 1
+        return self._last_id
+
+
 class GameObject:
     def __init__(
         self,
@@ -68,8 +79,10 @@ class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
 
     def __init__(self, websockets: dict[int, WebSocket]) -> None:
+        # TODO переделать для новой системы комнат
         self.websockets = websockets  # websockets от менеджера соединений
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
+        self.id_pool = IDPool()
         # переменные для цикла
         self._lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
