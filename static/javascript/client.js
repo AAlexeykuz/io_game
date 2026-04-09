@@ -1,6 +1,6 @@
 // СОКЕТ И URL
 const hostname = window.location.hostname;
-const url = new URL("/ws", `ws://${hostname}`);
+const url = new URL("/game", `ws://${hostname}`);
 url.port = "8000"
 const socket = new WebSocket(url);
 const httpUrl = new URL("/", `http://${hostname}`);
@@ -218,7 +218,5 @@ function renderInterpolatedState(startState, endState, t) {
         }
     }
 }
-
-console.log("Hello world2")
 
 requestAnimationFrame(gameLoop);

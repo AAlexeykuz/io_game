@@ -2,7 +2,7 @@ import logging
 import random
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,15 +21,19 @@ logging.basicConfig(
 
 
 class Room:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, room_id: str) -> None:
+        self.id: str = room_id
+        self.status: RoomStatus = RoomStatus.LOBBY
+
+    def get_info(self) -> dict:
+        return {"id": self.id, "player_count": 0, "status": self.status}
 
 
 class RoomManager:
     def __init__(self) -> None:
         self._rooms: dict[str, Room] = {}  # id комнаты -> комната
 
-    def generate_room_id(self, length=4) -> str:
+    def generate_room_id(self, length: int = 4) -> str:
         """Возвращает новый уникальный id комнаты.
 
         Args:
@@ -43,6 +47,9 @@ class RoomManager:
             if all(room_id != new_room_id for room_id in self._rooms):
                 break
         return new_room_id
+
+    def get_rooms_info(self) -> dict:
+        return {"rooms": [room.get_info() for room in self._rooms.values()]}
 
 
 # app fastapi
@@ -73,3 +80,15 @@ async def get_rooms():
             },
         ],
     }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def get_favicon():
+    favicon_path = Path("static", "favicon.ico")
+    return FileResponse(favicon_path)
+
+
+@app.websocket("/game")
+async def websocket_endpoint(websocket: WebSocket) -> None:
+    await websocket.accept()
+    print(f"hello {websocket}")
