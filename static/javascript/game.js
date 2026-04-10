@@ -229,3 +229,8 @@ function renderInterpolatedState(startState, endState, t) {
 }
 
 requestAnimationFrame(gameLoop);
+
+const start_button = document.getElementById('start-button');
+    document.addEventListener('click', function(){
+        sendData({"start_game": id})
+    })
