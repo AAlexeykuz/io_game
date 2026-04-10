@@ -10,7 +10,6 @@ canvas {
   background-color: gray;
 }
 .button_menu{
-  
   width: 260px;
   height: 100px;
   background-color: rgb(16, 0, 241);
@@ -32,8 +31,10 @@ a{
   font-style: normal;
   height: 100vh;
   display: flex;
+  text-align: center;
   justify-content: center;
   align-items: center;
+  overflow-y: auto;
 }
 .container{
   display: flex;
@@ -71,4 +72,41 @@ a{
   .img5 { top: 50%; left: 88%; }
   .img6 { top: 85%; left: 60%; }
   .img8 { top: 95%; left: 80%; }
+}
+.roomList{
+  padding: 10px 10px 10px 40px;
+  border: 1px solid black;
+  border-radius: 5px;
+  width: 400px;
+  display: flex;
+  justify-content: space-between;
+}
+::marker{
+  font-weight: 700;
+  font-size: 20px;
+}
+ol {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 0;
+}
+.text{
+  font-size: 50px;
+  font-weight: 1000;
+}
+.enter_true{
+  background-color: green;
+  color: white;
+  cursor: pointer;
+}
+.enter_false{
+  background-color: grey;
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.enter_false, .enter_true{
+  border: none;
+  border-radius: 3px;
+  font-weight: 700;
 }

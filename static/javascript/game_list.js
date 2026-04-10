@@ -6,20 +6,41 @@ class Room {
         this.count_player = count_player;
         this.status = status;
     }
-
+    
     CreateList(list) {
         let li = document.createElement('li');
         let div = document.createElement('div');
         let span = document.createElement('span');
 
-        span.textContent = `Комната: ${this.id} | Количество игроков: ${this.count_player} | Статус: ${this.status}`;
+        span.innerHTML = `Количество игроков: ${this.count_player}<br>Статус: ${this.status}`;
+        span.id = `${this.id}`
 
-        div.appendChild(span);
-        li.appendChild(div);
-        list.appendChild(li);
+        li.appendChild(span);
+        div.appendChild(li);
+        list.appendChild(div);
+
+        div.classList.add('roomList');
+
+        const button = document.createElement('button');
+        button.textContent = 'Присоединиться';
+        div.appendChild(button);
+
+        if(this.status == 'Ожидание'){
+            button.classList.add('enter_true')
+        } else {
+            button.classList.add('enter_false')
+        }
     }
+    
 }
+// Данные для примера!!!!
+const room1 = new Room(1, 2, "Ожидание");
+const room2 = new Room(4, 3, "В игре");
 
+room2.CreateList(list);
+room1.CreateList(list);
+room1.CreateList(list);
+//
 
 async function fetchRooms() {
     try {
