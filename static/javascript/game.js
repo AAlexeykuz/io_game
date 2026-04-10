@@ -16,7 +16,7 @@ httpUrl.port = "8000";
 
 socket.onclose = (event) => {
     if (event.code === 1006 || !event.wasClean) {
-        alert(`Ошибка: комната с id ${id} не найдена.`);
+        alert(`Ошибка подключения`);
         window.location.href = "/";
     }
 };
@@ -141,6 +141,7 @@ const INTERPOLATION_OFFSET = 50; // Задержка в мс для сглажи
 
 socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
+    console.log("data");
     serverStates.push({
         timestamp: Date.now(),
         texture: data.texture,
@@ -230,7 +231,7 @@ function renderInterpolatedState(startState, endState, t) {
 
 requestAnimationFrame(gameLoop);
 
-const start_button = document.getElementById('start-button');
-    document.addEventListener('click', function(){
-        sendData({"start_game": id})
-    })
+const start_button = document.getElementById("start-button");
+start_button.addEventListener("click", function () {
+    sendData(["start"]);
+});

@@ -12,7 +12,7 @@ class Room {
         let div = document.createElement("div");
         let span = document.createElement("span");
 
-        span.innerHTML = `Количество игроков: ${this.count_player}<br>Статус: ${this.status}`;
+        span.innerHTML = `Код: ${this.id}<br>Количество игроков: ${this.count_player}<br>Статус: ${this.status}`;
         span.id = `${this.id}`;
 
         li.appendChild(span);
@@ -28,11 +28,13 @@ class Room {
         });
         div.appendChild(button);
 
-        if (this.status == "Ожидание") {
-            button.classList.add("enter_true");
-        } else {
-            button.classList.add("enter_false");
-        }
+        // потом сделаем так
+        button.classList.add("enter_true");
+        // if (this.status == "Ожидание") {
+        //     button.classList.add("enter_true");
+        // } else {
+        //     button.classList.add("enter_false");
+        // }
     }
 }
 // Данные для примера!!!!

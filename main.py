@@ -52,6 +52,8 @@ class Room:
     async def connect(self, websocket: WebSocket) -> int:
         await websocket.accept()
         player_id = self._id_pool.get_new_id()
+        if self._game:
+            self._game.add_player(player_id)
         self.players[player_id] = websocket
         return player_id
 
@@ -59,6 +61,24 @@ class Room:
         if self._game:
             self._game.remove_player(player_id)
         del self.players[player_id]
+
+    async def handle_input(self, player_input: dict, player_id: int) -> None:
+        if self._game:
+            self._game.handle_client_input(player_input, player_id)
+            return
+        if "start" in player_input:
+            if player_id == list(self.players.keys())[0]:
+                self.start_game()
+            else:
+                await self.players[player_id].send_json(
+                    {"alert": "Только хост может начать игру."}
+                )
+
+    def start_game(self) -> None:
+        self._game: Game = Game(self.players, self._id_pool)
+        for player_id in self.players:
+            self._game.add_player(player_id)
+        self._game.start_loop()
 
 
 class RoomManager:
@@ -142,7 +162,7 @@ async def join_room(websocket: WebSocket, room_id: str) -> None:
     logging.info(f"Client {player_id} joined {room_id}")
     try:
         while True:
-            await websocket.receive_json()
+            await room.handle_input(await websocket.receive_json(), player_id)
     except WebSocketDisconnect:
         room.disconnect(player_id)
         room_manager.remove_room_if_empty(room_id)
