@@ -34,11 +34,11 @@ class Room:
         self.players: dict[int, WebSocket] = {}  # id из id_pool -> Websocket
         self.is_private: bool = True
 
-        self.id_pool = IDPool()
-        self.game: Game | None = None
+        self._id_pool = IDPool()
+        self._game: Game | None = None
 
     def get_status(self) -> RoomStatus:
-        if self.game:
+        if self._game:
             return RoomStatus.PLAYING
         return RoomStatus.LOBBY
 
@@ -51,13 +51,13 @@ class Room:
 
     async def connect(self, websocket: WebSocket) -> int:
         await websocket.accept()
-        player_id = self.id_pool.get_new_id()
+        player_id = self._id_pool.get_new_id()
         self.players[player_id] = websocket
         return player_id
 
-    async def disconnect(self, player_id: int) -> None:
-        if self.game:
-            self.game.remove_player(player_id)
+    def disconnect(self, player_id: int) -> None:
+        if self._game:
+            self._game.remove_player(player_id)
         del self.players[player_id]
 
 
@@ -87,8 +87,10 @@ class RoomManager:
         print("комнаты", self._rooms)
         return room_id
 
-    def remove_room(self, room_id: str) -> None:
-        pass
+    def remove_room_if_empty(self, room_id: str) -> None:
+        room = self.get_room(room_id)
+        if room is not None and len(room.players) == 0:
+            del self._rooms[room_id]
 
     def get_rooms_info(self) -> dict:
         return {"rooms": [room.get_info() for room in self._rooms.values()]}
@@ -142,4 +144,6 @@ async def join_room(websocket: WebSocket, room_id: str) -> None:
         while True:
             await websocket.receive_json()
     except WebSocketDisconnect:
+        room.disconnect(player_id)
+        room_manager.remove_room_if_empty(room_id)
         logging.info(f"Client {player_id} left {room_id}")
