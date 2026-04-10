@@ -4,8 +4,8 @@ from pydantic import BaseModel
 
 
 class RoomStatus(Enum):
-    LOBBY = "Lobby"
-    PLAYING = "Playing"
+    LOBBY = "Ожидание"
+    PLAYING = "В игре"
 
 
 class RoomInfo(BaseModel):

@@ -9,7 +9,7 @@ canvas {
   display: block;
   background-color: gray;
 }
-.button_menu{
+.button_menu {
   width: 260px;
   height: 100px;
   background-color: rgb(16, 0, 241);
@@ -19,14 +19,17 @@ canvas {
   justify-content: center;
   align-items: center;
   border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  color: rgb(255, 255, 255);
 }
-a{
+a {
   text-decoration: none;
   color: rgb(255, 255, 255);
 }
-.menu{
+.menu {
   font-size: 17px;
-  font-family: "Press Start 2P", system-ui;
+  font-family: 'Press Start 2P', system-ui;
   font-weight: 400;
   font-style: normal;
   height: 100vh;
@@ -36,7 +39,7 @@ a{
   align-items: center;
   overflow-y: auto;
 }
-.container{
+.container {
   display: flex;
   gap: 15px;
 }
@@ -47,33 +50,90 @@ a{
   height: auto;
 }
 
-.img1 { top: 5%; left: 2%; }
-.img2 { top: 80%; left: 3%; }
-.img3 { top: 50%; left: 15%; }
-.img4 { top: 5%; left: 85%; }
-.img5 { top: 40%; left: 92%; }
-.img6 { top: 75%; left: 70%; }
-.img7 { top: 85%; left: 48%; }
-.img8 { top: 90%; left: 90%; }
+.img1 {
+  top: 5%;
+  left: 2%;
+}
+.img2 {
+  top: 80%;
+  left: 3%;
+}
+.img3 {
+  top: 50%;
+  left: 15%;
+}
+.img4 {
+  top: 5%;
+  left: 85%;
+}
+.img5 {
+  top: 40%;
+  left: 92%;
+}
+.img6 {
+  top: 75%;
+  left: 70%;
+}
+.img7 {
+  top: 85%;
+  left: 48%;
+}
+.img8 {
+  top: 90%;
+  left: 90%;
+}
 
 @media (max-width: 1024px) {
-  .decor_img { width: 50px; }
-  .img2 { top: 85%; left: 1%; }
-  .img5 { left: 88%; }
-  .img8 { left: 85%; }
+  .decor_img {
+    width: 50px;
+  }
+  .img2 {
+    top: 85%;
+    left: 1%;
+  }
+  .img5 {
+    left: 88%;
+  }
+  .img8 {
+    left: 85%;
+  }
 }
 
 @media (max-width: 768px) {
-  .decor_img { width: 35px; opacity: 0.6; }
-  .img3, .img7 { display: none; } 
-  .img1 { top: 3%; left: 1%; }
-  .img2 { top: 90%; left: 1%; }
-  .img4 { top: 3%; left: 85%; }
-  .img5 { top: 50%; left: 88%; }
-  .img6 { top: 85%; left: 60%; }
-  .img8 { top: 95%; left: 80%; }
+  .decor_img {
+    width: 35px;
+    opacity: 0.6;
+  }
+  .img3,
+  .img7 {
+    display: none;
+  }
+  .img1 {
+    top: 3%;
+    left: 1%;
+  }
+  .img2 {
+    top: 90%;
+    left: 1%;
+  }
+  .img4 {
+    top: 3%;
+    left: 85%;
+  }
+  .img5 {
+    top: 50%;
+    left: 88%;
+  }
+  .img6 {
+    top: 85%;
+    left: 60%;
+  }
+  .img8 {
+    top: 95%;
+    left: 80%;
+  }
 }
-.roomList{
+.roomList {
   padding: 10px 10px 10px 40px;
   border: 1px solid black;
   border-radius: 5px;
@@ -81,31 +141,32 @@ a{
   display: flex;
   justify-content: space-between;
 }
-::marker{
+::marker {
   font-weight: 700;
   font-size: 20px;
 }
 ol {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
 }
-.text{
+.text {
   font-size: 50px;
   font-weight: 1000;
 }
-.enter_true{
+.enter_true {
   background-color: green;
   color: white;
   cursor: pointer;
 }
-.enter_false{
+.enter_false {
   background-color: grey;
   text-decoration: line-through;
   opacity: 0.55;
 }
-.enter_false, .enter_true{
+.enter_false,
+.enter_true {
   border: none;
   border-radius: 3px;
   font-weight: 700;

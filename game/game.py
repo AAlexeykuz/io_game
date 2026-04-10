@@ -5,16 +5,7 @@ import sys
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-
-class IDPool:
-    """Класс, возвращающий id как целые числа последовательно"""
-
-    def __init__(self) -> None:
-        self._last_id: int = -1
-
-    def get_new_id(self) -> int:
-        self._last_id += 1
-        return self._last_id
+from game.id_pool import IDPool
 
 
 class GameObject:
@@ -78,11 +69,13 @@ class Player(GameObject):
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
 
-    def __init__(self, websockets: dict[int, WebSocket]) -> None:
+    def __init__(
+        self, websockets: dict[int, WebSocket], id_pool: IDPool
+    ) -> None:
         # TODO переделать для новой системы комнат
-        self.websockets = websockets  # websockets от менеджера соединений
+        self.websockets = websockets  # websockets от комнаты
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
-        self.id_pool = IDPool()
+        self.id_pool = id_pool
         # переменные для цикла
         self._lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
@@ -243,7 +236,7 @@ class CollisionManager:
                 dy = overlap_bottom
             dx = 0
 
-        # Смещение двух объектов(для игроков, для неподвижных препятствий второй объект сдвигаяться не должен)
+        # Смещение двух объектов (для игроков, для неподвижных препятствий второй объект сдвигаться не должен)
         obj1.x += dx / 2
         obj2.x += dx / 2
         obj1.y -= dy / 2
