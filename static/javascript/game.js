@@ -3,12 +3,11 @@
 const queryString = window.location.search;
 const urlParams = new URLSearchParams(queryString);
 
-const id = urlParams.get("id");
-
-console.log(id);
+const roomId = urlParams.get("id");
+document.getElementById("room_id").textContent = "Код команты: " + roomId;
 
 const hostname = window.location.hostname;
-const url = new URL(`/rooms/${id}`, `ws://${hostname}`);
+const url = new URL(`/rooms/${roomId}`, `ws://${hostname}`);
 url.port = "8000";
 const socket = new WebSocket(url);
 const httpUrl = new URL("/", `http://${hostname}`);
@@ -141,11 +140,17 @@ const INTERPOLATION_OFFSET = 50; // Задержка в мс для сглажи
 
 socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
-    console.log("data");
-    serverStates.push({
-        timestamp: Date.now(),
-        texture: data.texture,
-    });
+
+    if (data.alert) {
+        alert(data.alert);
+    }
+
+    if (data.texture) {
+        serverStates.push({
+            timestamp: Date.now(),
+            texture: data.texture,
+        });
+    }
     if (serverStates.length > 20) serverStates.shift();
 };
 

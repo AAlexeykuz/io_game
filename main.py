@@ -9,7 +9,7 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from game.game import Game
@@ -75,7 +75,7 @@ class Room:
                 )
 
     def start_game(self) -> None:
-        self._game: Game = Game(self.players, self._id_pool)
+        self._game = Game(self.players, self._id_pool)
         for player_id in self.players:
             self._game.add_player(player_id)
         self._game.start_loop()
