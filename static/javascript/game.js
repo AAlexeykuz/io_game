@@ -1,73 +1,79 @@
 // СОКЕТ И URL
+
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+
+const roomId = urlParams.get("id");
+document.getElementById("room_id").textContent = "Код команты: " + roomId;
+
 const hostname = window.location.hostname;
-const url = new URL("/ws", `ws://${hostname}`);
-url.port = "8000"
+const url = new URL(`/rooms/${roomId}`, `ws://${hostname}`);
+url.port = "8000";
 const socket = new WebSocket(url);
 const httpUrl = new URL("/", `http://${hostname}`);
 httpUrl.port = "8000";
 
+socket.onclose = (event) => {
+    if (event.code === 1006 || !event.wasClean) {
+        alert(`Ошибка подключения`);
+        window.location.href = "/";
+    }
+};
 // КАНВАС
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 // МАТЕМАТИКА
-const { PI, atan2 } = Math
-
+const { PI, atan2 } = Math;
 
 // настройка окна
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
-resize()
+resize();
 window.addEventListener("resize", resize);
-
 
 // Функция отправки направления на сервер
 function sendData(data) {
     if (socket.readyState !== WebSocket.OPEN) {
-        return
+        return;
     }
     const message = JSON.stringify(data);
     socket.send(message);
 }
 
-
 // Обработчик нажатия клавиш
 const MOVEMENT_KEY_MAP = {
-    "KeyW": "up",
-    "ArrowUp": "up",
+    KeyW: "up",
+    ArrowUp: "up",
 
-    "KeyS": "down",
-    "ArrowDown": "down",
+    KeyS: "down",
+    ArrowDown: "down",
 
-    "KeyA": "left",
-    "ArrowLeft": "left",
+    KeyA: "left",
+    ArrowLeft: "left",
 
-    "KeyD": "right",
-    "ArrowRight": "right"
+    KeyD: "right",
+    ArrowRight: "right",
 };
-
 
 const movement = {
     up: false,
     down: false,
     left: false,
-    right: false
-}
-
+    right: false,
+};
 
 function handleMovement(event, isPressed) {
     const direction = MOVEMENT_KEY_MAP[event.code];
     if (!direction) return;
-    movement[direction] = isPressed
+    movement[direction] = isPressed;
     updateDirection();
 }
 
-
-document.addEventListener("keydown", event => handleMovement(event, true));
-document.addEventListener("keyup", event => handleMovement(event, false));
-
+document.addEventListener("keydown", (event) => handleMovement(event, true));
+document.addEventListener("keyup", (event) => handleMovement(event, false));
 
 // Функция пересчета направления и отправки
 function updateDirection() {
@@ -82,7 +88,6 @@ function updateDirection() {
     sendData({ movement: [dx, dy] });
 }
 
-
 function getMouseAngle(mouseX, mouseY, centerX, centerY) {
     const dx = mouseX - centerX;
     const dy = mouseY - centerY;
@@ -91,26 +96,23 @@ function getMouseAngle(mouseX, mouseY, centerX, centerY) {
     return angle;
 }
 
-
 function SetupMouseTracking() {
     document.addEventListener("mousemove", (e) => {
         const rect = canvas.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
-        const angle = getMouseAngle(e.x, e.y, centerX, centerY)
+        const angle = getMouseAngle(e.x, e.y, centerX, centerY);
 
         sendData({
             angle: angle,
-        })
-    })
+        });
+    });
 }
 
-
-SetupMouseTracking()
+SetupMouseTracking();
 
 const textureCache = {};
-
 
 function getTexture(name) {
     if (!textureCache[name]) {
@@ -121,19 +123,15 @@ function getTexture(name) {
     return textureCache[name];
 }
 
-
-
-
 function drawTexture(textureName, x, y, width, height, angle) {
     const img = getTexture(textureName);
     if (!img.complete) return;
     ctx.save();
-    ctx.translate(x, y);  //перемещение в центр экрана
+    ctx.translate(x, y); //перемещение в центр экрана
     ctx.rotate(angle);
     ctx.drawImage(img, -width / 2, -height / 2, width, height);
     ctx.restore();
 }
-
 
 // ПОЛУЧЕНИЕ ДАННЫХ JSON
 
@@ -142,12 +140,19 @@ const INTERPOLATION_OFFSET = 50; // Задержка в мс для сглажи
 
 socket.onmessage = function (event) {
     const data = JSON.parse(event.data);
-    serverStates.push({
-        timestamp: Date.now(),
-        texture: data.texture
-    });
+
+    if (data.alert) {
+        alert(data.alert);
+    }
+
+    if (data.texture) {
+        serverStates.push({
+            timestamp: Date.now(),
+            texture: data.texture,
+        });
+    }
     if (serverStates.length > 20) serverStates.shift();
-}
+};
 
 // ИНТЕРПОЛЯЦИЯ, АНИМАЦИЯ
 
@@ -157,7 +162,7 @@ function lerp(start, end, t) {
 
 // lerp для углов, чтобы не поворачивал на 360 градусов
 function lerpAngle(a, b, t) {
-    const delta = ((b - a + PI) % (2 * PI) + 2 * PI) % (2 * PI) - PI;
+    const delta = ((((b - a + PI) % (2 * PI)) + 2 * PI) % (2 * PI)) - PI;
     return a + delta * t;
 }
 
@@ -173,7 +178,10 @@ function gameLoop() {
 
         // Нахождение двух состояний между renderTime
         for (let i = 0; i < serverStates.length - 1; i++) {
-            if (serverStates[i].timestamp <= renderTime && renderTime <= serverStates[i + 1].timestamp) {
+            if (
+                serverStates[i].timestamp <= renderTime &&
+                renderTime <= serverStates[i + 1].timestamp
+            ) {
                 startState = serverStates[i];
                 endState = serverStates[i + 1];
                 break;
@@ -197,11 +205,11 @@ function gameLoop() {
 }
 
 function renderInterpolatedState(startState, endState, t) {
-    const endTextureMap = new Map(endState.texture.map(e => [e[0], e]));
+    const endTextureMap = new Map(endState.texture.map((e) => [e[0], e]));
 
     //смещение для центрирование: половина размеров экрана
-    const offsetX = canvas.width / 2
-    const offsetY = canvas.height / 2
+    const offsetX = canvas.width / 2;
+    const offsetY = canvas.height / 2;
 
     for (const startTexture of startState.texture) {
         const [id, textureName, x1, y1, width, height, angle1] = startTexture;
@@ -214,11 +222,21 @@ function renderInterpolatedState(startState, endState, t) {
             const interpolatedY = lerp(y1, y2, t) + offsetY;
             const interpolatedAngle = lerpAngle(angle1, angle2, t);
 
-            drawTexture(textureName, interpolatedX, interpolatedY, width, height, interpolatedAngle);
+            drawTexture(
+                textureName,
+                interpolatedX,
+                interpolatedY,
+                width,
+                height,
+                interpolatedAngle,
+            );
         }
     }
 }
 
-console.log("Hello world2")
-
 requestAnimationFrame(gameLoop);
+
+const start_button = document.getElementById("start-button");
+start_button.addEventListener("click", function () {
+    sendData(["start"]);
+});
