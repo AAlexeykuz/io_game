@@ -1,76 +1,105 @@
-let list = document.getElementById("list");
+// ---------- Конфигурация ----------
+const ROOMS_API_URL = '/rooms';
+const UPDATE_INTERVAL_MS = 3000;
 
+// ---------- Модель комнаты ----------
 class Room {
-    constructor(id, count_player, status) {
+    constructor(id, playerCount, status) {
         this.id = id;
-        this.count_player = count_player;
+        this.playerCount = playerCount;
         this.status = status;
     }
+}
 
-    CreateList(list) {
-        let li = document.createElement("li");
-        let div = document.createElement("div");
-        let span = document.createElement("span");
+// ---------- Представление списка комнат ----------
+class RoomListView {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        if (!this.container) {
+            throw new Error(`Container with id "${containerId}" not found`);
+        }
+        this.isUpdating = false;
+    }
 
-        span.innerHTML = `Код: ${this.id}<br>Количество игроков: ${this.count_player}<br>Статус: ${this.status}`;
-        span.id = `${this.id}`;
+    /**
+     * Создаёт DOM-элемент для одной комнаты
+     */
+    createRoomElement(room) {
+        const div = document.createElement('div');
+        div.className = 'roomList';
 
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+        span.id = room.id;
+        span.innerHTML = `Код: ${room.id}<br>Количество игроков: ${room.playerCount}<br>Статус: ${room.status}`;
         li.appendChild(span);
         div.appendChild(li);
-        list.appendChild(div);
 
-        div.classList.add("roomList");
-
-        const button = document.createElement("button");
-        button.textContent = "Присоединиться";
-        button.addEventListener("click", () => {
-            window.location.href = `../html/game.html?id=${this.id}`;
-        });
-        div.appendChild(button);
+        const button = document.createElement('button');
+        button.textContent = 'Присоединиться';
 
         // потом сделаем так
-        button.classList.add("enter_true");
-        // if (this.status == "Ожидание") {
-        //     button.classList.add("enter_true");
+        button.classList.add('enter_true');
+        // if (room.status === 'Ожидание') {
+        //     button.classList.add('enter_true');
         // } else {
-        //     button.classList.add("enter_false");
+        //     button.classList.add('enter_false');
         // }
-    }
-}
-// Данные для примера!!!!
-// const room1 = new Room(1, 2, "Ожидание");
-// const room2 = new Room(4, 3, "В игре");
 
-// room2.CreateList(list);
-// room1.CreateList(list);
-// room1.CreateList(list);
-//
-
-async function fetchRooms() {
-    try {
-        const response = await fetch("/rooms");
-        const data = await response.json();
-
-        // Очищаем старый список перед отрисовкой нового
-        const listElement = document.getElementById("list");
-        listElement.innerHTML = "";
-
-        data.rooms.forEach((roomData) => {
-            const room = new Room(
-                roomData.id,
-                roomData.player_count,
-                roomData.status,
-            );
-            room.CreateList(listElement);
+        button.addEventListener('click', () => {
+            window.location.href = `../html/game.html?id=${room.id}`;
         });
-    } catch (error) {
-        console.error("Ошибка при получении комнат:", error);
-    } finally {
-        let roomUpdateTimeout = 3000; // милисекунды
-        setTimeout(fetchRooms, roomUpdateTimeout);
+
+        div.appendChild(button);
+        return div;
+    }
+
+    /**
+     * Очищает контейнер и отрисовывает список комнат
+     */
+    render(rooms) {
+        this.container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        rooms.forEach(roomData => {
+            const room = new Room(roomData.id, roomData.player_count, roomData.status);
+            fragment.appendChild(this.createRoomElement(room));
+        });
+        this.container.appendChild(fragment);
+    }
+
+    /**
+     * Получает данные с сервера и запускает рендеринг
+     */
+    async fetchAndRender() {
+        if (this.isUpdating) return; // защита от параллельных вызовов
+        this.isUpdating = true;
+
+        try {
+            const response = await fetch(ROOMS_API_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            const data = await response.json();
+            this.render(data.rooms);
+        } catch (error) {
+            console.error('Ошибка при получении комнат:', error);
+        } finally {
+            this.isUpdating = false;
+            // Планируем следующее обновление
+            setTimeout(() => this.fetchAndRender(), UPDATE_INTERVAL_MS);
+        }
+    }
+
+    /**
+     * Запускает цикл обновлений
+     */
+    start() {
+        this.fetchAndRender();
     }
 }
 
-// Запускаем первый раз
-fetchRooms();
-console.log("testing");
+// ---------- Точка входа ----------
+document.addEventListener('DOMContentLoaded', () => {
+    const view = new RoomListView('list');
+    view.start();
+});
