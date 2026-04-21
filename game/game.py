@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 import sys
+import math
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -32,6 +33,45 @@ class GameObject:
 
     def set_angle(self, angle: float) -> None:
         self.angle = angle
+
+
+class Bullet(GameObject):
+    def __init__(
+        self,
+        obj_id: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        angle: float,
+        speed: float,  # скорость пули
+        owner_id: int,  # id игрока, отправившего пулю
+        max_lifetime: float,  # секунд до автоудаления
+    ) -> None:
+        super().__init__(obj_id, x, y, width, height, angle)
+        self.speed = speed
+        self.owner_id = owner_id
+        self.max_lifetime = max_lifetime
+        self.age = 0.0  # прожитое время
+        self.texture = ""
+
+    def update(
+        self, delta_time: float
+    ) -> None:  # Обновление позиции и возраста пули
+        self.x += self.speed * math.cos(self.angle) * delta_time
+        self.y += self.speed * math.sin(self.angle) * delta_time
+        self.age += delta_time
+
+    def check_age(self) -> bool:  # проверка возраста пули
+        return self.age >= self.max_lifetime
+
+    def if_out_of_map(
+        self, world_width: float, world_height: float
+    ) -> bool:  # проверка, что пуля не выходит за карту
+        left, right, top, bottom = self.get_bounds()
+        return (
+            right < 0 or left > world_width or bottom < 0 or top > world_height
+        )
 
 
 class Player(GameObject):
@@ -66,10 +106,14 @@ class Player(GameObject):
 
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
+    WORLD_WIDTH = """"""  # ширина игравого поля
+    WORLD_HEIGHT = """"""  # высота игрового поля
 
     def __init__(self, websockets: dict[int, WebSocket]) -> None:
         self.websockets = websockets  # websockets от менеджера соединений
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
+        self.bullets: dict[int, Bullet] = {}  # id вебсокета -> Bullet
+        self.next_bullet_id = 100000  # следующее значение id для пули (чтобы не пересекаться с другими объектами)
         # переменные для цикла
         self._lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
@@ -82,6 +126,41 @@ class Game:
     def remove_player(self, player_id) -> None:
         if player_id in self.players:
             del self.players[player_id]
+
+    def add_bullet(
+        self, owner_id: int, angle
+    ) -> None:  # добавление новой пули в список
+        player = self.players.get(owner_id)
+        if not player:
+            return
+        bullet_id = self.next_bullet_id
+        self.next_bullet_id += 1
+        bullet = Bullet(
+            obj_id=bullet_id,
+            x=player.x,
+            y=player.y,
+            width=0.3,
+            height=0.3,
+            angle=angle,
+            speed=600.0,
+            owner_id=owner_id,
+            max_lifetime=3.0,
+        )
+        self.bullets[bullet_id] = bullet
+
+    def remove_bullets(
+        self, delta_time: float
+    ) -> None:  # удаление пули из списка
+        delete_bullets = []
+        for bullet_id, bullet in self.bullets.items():
+            bullet.update(delta_time)
+            if (
+                bullet.if_out_of_map(self.WORLD_WIDTH, self.WORLD_HEIGHT)
+                or bullet.check_age()
+            ):
+                delete_bullets.append(bullet_id)
+        for del_bullet in delete_bullets:
+            del self.bullets[del_bullet]
 
     def start_loop(self) -> None:
         if self._loop_task is None or self._loop_task.done():
@@ -98,6 +177,7 @@ class Game:
     def _tick(self, delta_time: float) -> None:
         for player in self.players.values():
             player.move(delta_time)
+        self.remove_bullets(delta_time)
 
     def _get_client_info(self, player_id: int) -> dict:
         """Возвращает всю визуальную информацию для данного игрока
