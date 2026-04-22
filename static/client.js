@@ -98,12 +98,25 @@ function SetupMouseTracking() {
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
-        const angle = getMouseAngle(e.x, e.y, centerX, centerY)
+        const angle = getMouseAngle(e.clientX, e.clientY, centerX, centerY)
 
         sendData({
             angle: angle,
         })
     })
+
+    canvas.addEventListener("mousedown", (e) => {
+        if (e.button === 0) {  // обработка нажатия левой кнопки мыши
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const angle = getMouseAngle(e.clientX, e.clientY, centerX, centerY)
+            sendData({
+                angle: angle,
+            })
+        }
+    });
 }
 
 

@@ -53,7 +53,7 @@ class Bullet(GameObject):
         self.owner_id = owner_id
         self.max_lifetime = max_lifetime
         self.age = 0.0  # прожитое время
-        self.texture = ""
+        self.texture = "mentos.png"
 
     def update(
         self, delta_time: float
@@ -65,13 +65,13 @@ class Bullet(GameObject):
     def check_age(self) -> bool:  # проверка возраста пули
         return self.age >= self.max_lifetime
 
-    def if_out_of_map(
+    """def if_out_of_map(
         self, world_width: float, world_height: float
     ) -> bool:  # проверка, что пуля не выходит за карту
         left, right, top, bottom = self.get_bounds()
         return (
             right < 0 or left > world_width or bottom < 0 or top > world_height
-        )
+        )"""
 
 
 class Player(GameObject):
@@ -106,8 +106,8 @@ class Player(GameObject):
 
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
-    WORLD_WIDTH = """"""  # ширина игравого поля
-    WORLD_HEIGHT = """"""  # высота игрового поля
+    """WORLD_WIDTH =   # ширина игравого поля
+    WORLD_HEIGHT =   # высота игрового поля"""
 
     def __init__(self, websockets: dict[int, WebSocket]) -> None:
         self.websockets = websockets  # websockets от менеджера соединений
@@ -154,10 +154,7 @@ class Game:
         delete_bullets = []
         for bullet_id, bullet in self.bullets.items():
             bullet.update(delta_time)
-            if (
-                bullet.if_out_of_map(self.WORLD_WIDTH, self.WORLD_HEIGHT)
-                or bullet.check_age()
-            ):
+            if bullet.check_age():  # позже добавить bullet.if_out_of_map(self.WORLD_WIDTH, self.WORLD_HEIGHT)
                 delete_bullets.append(bullet_id)
         for del_bullet in delete_bullets:
             del self.bullets[del_bullet]
@@ -196,6 +193,22 @@ class Game:
         cam_y = player.y
 
         relative_objects = []
+
+        for bullet in self.bullets.values():  # добавление пуль к общим объектам
+            rel_x = bullet.x - cam_x
+            rel_y = bullet.y - cam_y
+            relative_objects.append(
+                [
+                    bullet.id,
+                    bullet.texture,
+                    rel_x,  # относительная координата по x
+                    rel_y,  # относительная координата по y
+                    bullet.width,
+                    bullet.height,
+                    bullet.angle,
+                ]
+            )
+
         for player in self.players.values():
             # вычисление положение объекта, относительно текущего игрока
             rel_x = player.x - cam_x
@@ -238,6 +251,8 @@ class Game:
             self.players[player_id].set_velocity(*client_input["movement"])
         if "angle" in client_input:
             self.players[player_id].set_angle(client_input["angle"])
+        if "shoot" in client_input:
+            self.add_bullet[player_id, client_input["shoot"]]
 
     async def _game_loop(self) -> None:
         """Главный цикл игры"""
