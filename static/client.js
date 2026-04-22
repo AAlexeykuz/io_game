@@ -83,12 +83,15 @@ function updateDirection() {
 }
 
 
-function getMouseAngle(mouseX, mouseY, centerX, centerY) {
+function getMouseAngle(mouseX, mouseY, centerX, centerY, forShoot = false) {
     const dx = mouseX - centerX;
     const dy = mouseY - centerY;
-
-    const angle = atan2(dy, dx) + PI / 2;
-    return angle;
+    const rawAngle = atan2(dy, dx) //чистый угол без смещения
+    if (forShoot) {
+        return rawAngle; //угол для пули (при forShoot = 1)
+    } else {
+        return rawAngle + PI / 2; //угол для игрока
+    }
 }
 
 
@@ -111,9 +114,9 @@ function SetupMouseTracking() {
             const rect = canvas.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-            const angle = getMouseAngle(e.clientX, e.clientY, centerX, centerY)
+            const shootAngle = getMouseAngle(e.clientX, e.clientY, centerX, centerY, true)
             sendData({
-                angle: angle,
+                shoot: shootAngle,
             })
         }
     });

@@ -112,7 +112,7 @@ class Game:
     def __init__(self, websockets: dict[int, WebSocket]) -> None:
         self.websockets = websockets  # websockets от менеджера соединений
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
-        self.bullets: dict[int, Bullet] = {}  # id вебсокета -> Bullet
+        self.bullets: dict[int, Bullet] = {}  # id из next_bullet_id -> Bullet
         self.next_bullet_id = 100000  # следующее значение id для пули (чтобы не пересекаться с другими объектами)
         # переменные для цикла
         self._lock = asyncio.Lock()
@@ -139,10 +139,10 @@ class Game:
             obj_id=bullet_id,
             x=player.x,
             y=player.y,
-            width=0.3,
-            height=0.3,
+            width=20,
+            height=20,
             angle=angle,
-            speed=600.0,
+            speed=300.0,
             owner_id=owner_id,
             max_lifetime=3.0,
         )
@@ -252,7 +252,7 @@ class Game:
         if "angle" in client_input:
             self.players[player_id].set_angle(client_input["angle"])
         if "shoot" in client_input:
-            self.add_bullet[player_id, client_input["shoot"]]
+            self.add_bullet(player_id, client_input["shoot"])
 
     async def _game_loop(self) -> None:
         """Главный цикл игры"""
