@@ -1,9 +1,9 @@
 import asyncio
 import contextlib
 import logging
+import math
 import random
 import sys
-import math
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -16,16 +16,19 @@ class GameObject:
         obj_id: int,
         x: float,
         y: float,
+        angle: float,
         width: float,
         height: float,
-        angle: float,
     ) -> None:
         self.id: int = obj_id
         self.x: float = x  # игровые единицы
         self.y: float = y  # игровые единицы
-        self.width: float = width  # игровые единицы
-        self.height: float = height  # игровые единицы
         self.angle: float = angle  # радианы
+        self.width: float = width
+        self.height: float = height
+
+    def set_angle(self, angle: float) -> None:
+        self.angle = angle
 
     def get_bounds(self) -> tuple[float, float, float, float]:
         left = self.x - self.width / 2
@@ -34,29 +37,48 @@ class GameObject:
         bottom = self.y - self.height / 2
         return left, rigth, top, bottom
 
-    def set_angle(self, angle: float) -> None:
-        self.angle = angle
 
-
-class Bullet(GameObject):
+class TextureObject(GameObject):
     def __init__(
         self,
         obj_id: int,
         x: float,
         y: float,
+        angle: float,
+        texture_path: str,
         width: float,
         height: float,
+    ) -> None:
+        super().__init__(obj_id, x, y, angle, width, height)
+        self.texture_path = texture_path
+
+
+class Bullet(TextureObject):
+    def __init__(
+        self,
+        obj_id: int,
+        x: float,
+        y: float,
         angle: float,
+        width: float,
+        height: float,
         speed: float,  # скорость пули
         owner_id: int,  # id игрока, отправившего пулю
         max_lifetime: float,  # секунд до автоудаления
     ) -> None:
-        super().__init__(obj_id, x, y, width, height, angle)
+        super().__init__(
+            obj_id,
+            x,
+            y,
+            angle,
+            "mentos.png",
+            width,
+            height,
+        )
         self.speed = speed
         self.owner_id = owner_id
-        self.max_lifetime = max_lifetime
-        self.age = 0.0  # прожитое время
-        self.texture = "mentos.png"
+        self.max_lifetime = max_lifetime  # это тоже
+        self.age = 0.0  # Это не нужно, удалить.
 
     def update(
         self, delta_time: float
@@ -68,21 +90,30 @@ class Bullet(GameObject):
     def check_age(self) -> bool:  # проверка возраста пули
         return self.age >= self.max_lifetime
 
-    """def if_out_of_map(
+    # пока не используется
+    def if_out_of_map(
         self, world_width: float, world_height: float
     ) -> bool:  # проверка, что пуля не выходит за карту
         left, right, top, bottom = self.get_bounds()
         return (
             right < 0 or left > world_width or bottom < 0 or top > world_height
-        )"""
+        )
 
 
-class Player(GameObject):
+class Player(TextureObject):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        super().__init__(obj_id, x, y, 50, 150, 0)  # временно захардкодено
-        self.texture = random.choice(["fanta.png", "coca.png", "sprite.png"])
+        texture_path = random.choice(["fanta.png", "coca.png", "sprite.png"])
+        super().__init__(
+            obj_id,
+            x,
+            y,
+            0,
+            texture_path,
+            50,
+            150,
+        )  # временно захардкодено
 
         self.vx: float = 0.0
         self.vy: float = 0.0
@@ -115,11 +146,9 @@ class Game:
     def __init__(
         self, websockets: dict[int, WebSocket], id_pool: IDPool
     ) -> None:
-        # TODO переделать для новой системы комнат
         self.websockets = websockets  # websockets от комнаты
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
-        self.bullets: dict[int, Bullet] = {}  # id из next_bullet_id -> Bullet
-        self.next_bullet_id = 100000  # следующее значение id для пули (чтобы не пересекаться с другими объектами)
+        self.bullets: dict[int, Bullet] = {}  # id пули -> Bullet
         self.id_pool = id_pool
         # переменные для цикла
         self._lock = asyncio.Lock()
@@ -134,14 +163,9 @@ class Game:
         if player_id in self.players:
             del self.players[player_id]
 
-    def add_bullet(
-        self, owner_id: int, angle
-    ) -> None:  # добавление новой пули в список
-        player = self.players.get(owner_id)
-        if not player:
-            return
-        bullet_id = self.next_bullet_id
-        self.next_bullet_id += 1
+    def add_bullet(self, player_id: int, angle: float) -> None:
+        player = self.players[player_id]
+        bullet_id = self.id_pool.get_new_id()
         bullet = Bullet(
             obj_id=bullet_id,
             x=player.x,
@@ -150,7 +174,7 @@ class Game:
             height=20,
             angle=angle,
             speed=300.0,
-            owner_id=owner_id,
+            owner_id=player_id,
             max_lifetime=3.0,
         )
         self.bullets[bullet_id] = bullet
@@ -183,6 +207,9 @@ class Game:
             player.move(delta_time)
         self.remove_bullets(delta_time)
 
+    def _get_texture_objects(self) -> list[TextureObject]:
+        return list((self.players | self.bullets).values())
+
     def _get_client_info(self, player_id: int) -> dict:
         """Возвращает всю визуальную информацию для данного игрока
 
@@ -192,47 +219,30 @@ class Game:
         Returns:
             dict: json с визуальными данными
         """
-        player = self.players.get(player_id)
-        if not player:
-            return {"texture": []}
+        player = self.players[player_id]
         # центр камеры - позиция игрока, для которого предназначены данные
-        cam_x = player.x
-        cam_y = player.y
+        camera_x = player.x
+        camera_y = player.y
 
-        relative_objects = []
+        texture_objects_to_show = []
 
-        for bullet in self.bullets.values():  # добавление пуль к общим объектам
-            rel_x = bullet.x - cam_x
-            rel_y = bullet.y - cam_y
-            relative_objects.append(
-                [
-                    bullet.id,
-                    bullet.texture,
-                    rel_x,  # относительная координата по x
-                    rel_y,  # относительная координата по y
-                    bullet.width,
-                    bullet.height,
-                    bullet.angle,
-                ]
-            )
-
-        for player in self.players.values():
+        for texture_object in self._get_texture_objects():
             # вычисление положение объекта, относительно текущего игрока
-            rel_x = player.x - cam_x
-            rel_y = player.y - cam_y
-            relative_objects.append(
+            relative_x = texture_object.x - camera_x
+            relative_y = texture_object.y - camera_y
+            texture_objects_to_show.append(
                 [
-                    player.id,
-                    player.texture,
-                    rel_x,  # относительная координата по x
-                    rel_y,  # относительная координата по y
-                    player.width,
-                    player.height,
-                    player.angle,
+                    texture_object.id,
+                    texture_object.texture_path,
+                    relative_x,  # относительная координата по x
+                    relative_y,  # относительная координата по y
+                    texture_object.width,
+                    texture_object.height,
+                    texture_object.angle,
                 ]
             )
 
-        return {"texture": relative_objects}
+        return {"texture": texture_objects_to_show}
 
     async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
