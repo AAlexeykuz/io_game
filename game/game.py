@@ -1,10 +1,13 @@
 import asyncio
 import contextlib
 import logging
+import random
 import sys
 import math
 
 from fastapi import WebSocket, WebSocketDisconnect
+
+from game.id_pool import IDPool
 
 
 class GameObject:
@@ -79,7 +82,7 @@ class Player(GameObject):
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
         super().__init__(obj_id, x, y, 50, 150, 0)  # временно захардкодено
-        self.texture = "coca.png" if obj_id % 2 == 0 else "sprite.png"
+        self.texture = random.choice(["fanta.png", "coca.png", "sprite.png"])
 
         self.vx: float = 0.0
         self.vy: float = 0.0
@@ -109,19 +112,23 @@ class Game:
     """WORLD_WIDTH =   # ширина игравого поля
     WORLD_HEIGHT =   # высота игрового поля"""
 
-    def __init__(self, websockets: dict[int, WebSocket]) -> None:
-        self.websockets = websockets  # websockets от менеджера соединений
+    def __init__(
+        self, websockets: dict[int, WebSocket], id_pool: IDPool
+    ) -> None:
+        # TODO переделать для новой системы комнат
+        self.websockets = websockets  # websockets от комнаты
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
         self.bullets: dict[int, Bullet] = {}  # id из next_bullet_id -> Bullet
         self.next_bullet_id = 100000  # следующее значение id для пули (чтобы не пересекаться с другими объектами)
+        self.id_pool = id_pool
         # переменные для цикла
         self._lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
 
-    def add_player(self, player_id, x: float, y: float) -> None:
+    def add_player(self, player_id) -> None:
         if player_id not in self.players:
-            self.players[player_id] = Player(player_id, x, y)
+            self.players[player_id] = Player(player_id, 0, 0)
 
     def remove_player(self, player_id) -> None:
         if player_id in self.players:
@@ -325,7 +332,7 @@ class CollisionManager:
                 dy = overlap_bottom
             dx = 0
 
-        # Смещение двух объектов(для игроков, для неподвижных препятствий второй объект сдвигаяться не должен)
+        # Смещение двух объектов (для игроков, для неподвижных препятствий второй объект сдвигаться не должен)
         obj1.x += dx / 2
         obj2.x += dx / 2
         obj1.y -= dy / 2
