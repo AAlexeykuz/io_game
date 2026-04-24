@@ -1,17 +1,17 @@
 // ---------- Конфигурация ----------
 const GameConfig = {
-    WEBSOCKET_PORT: '8000',
+    WEBSOCKET_PORT: "8000",
     INTERPOLATION_OFFSET_MS: 50,
     MAX_STATE_BUFFER_SIZE: 20,
     MOVEMENT_KEY_MAP: {
-        KeyW: 'up',
-        ArrowUp: 'up',
-        KeyS: 'down',
-        ArrowDown: 'down',
-        KeyA: 'left',
-        ArrowLeft: 'left',
-        KeyD: 'right',
-        ArrowRight: 'right',
+        KeyW: "up",
+        ArrowUp: "up",
+        KeyS: "down",
+        ArrowDown: "down",
+        KeyA: "left",
+        ArrowLeft: "left",
+        KeyD: "right",
+        ArrowRight: "right",
     },
 };
 
@@ -49,9 +49,10 @@ class InputController {
     }
 
     setupListeners() {
-        document.addEventListener('keydown', (e) => this.handleKey(e, true));
-        document.addEventListener('keyup', (e) => this.handleKey(e, false));
-        document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        document.addEventListener("keydown", (e) => this.handleKey(e, true));
+        document.addEventListener("keyup", (e) => this.handleKey(e, false));
+        document.addEventListener("mousemove", (e) => this.handleMouseMove(e));
+        document.addEventListener("click", (e) => this.handleMouseClick(e));
     }
 
     handleKey(event, isPressed) {
@@ -62,18 +63,28 @@ class InputController {
     }
 
     handleMouseMove(event) {
-        const canvas = document.getElementById('gameCanvas');
+        const canvas = document.getElementById("gameCanvas");
         if (!canvas) return;
 
         const rect = canvas.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        const angle = MathUtils.getMouseAngle(event.clientX, event.clientY, centerX, centerY);
-        this.sendData({ angle });
+        const angle = MathUtils.getMouseAngle(
+            event.clientX,
+            event.clientY,
+            centerX,
+            centerY,
+        );
+        this.sendData({ angle: angle });
+    }
+
+    handleMouseClick(event) {
+        this.sendData({ shoot: true });
     }
 
     updateDirection() {
-        let dx = 0, dy = 0;
+        let dx = 0,
+            dy = 0;
         if (this.movement.left) dx -= 1;
         if (this.movement.right) dx += 1;
         if (this.movement.up) dy -= 1;
@@ -124,7 +135,10 @@ class StateInterpolator {
         let end = null;
 
         for (let i = 0; i < this.states.length - 1; i++) {
-            if (this.states[i].timestamp <= renderTime && renderTime <= this.states[i + 1].timestamp) {
+            if (
+                this.states[i].timestamp <= renderTime &&
+                renderTime <= this.states[i + 1].timestamp
+            ) {
                 start = this.states[i];
                 end = this.states[i + 1];
                 break;
@@ -148,7 +162,7 @@ class StateInterpolator {
 class GameRenderer {
     constructor(canvasId, textureManager) {
         this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext("2d");
         this.textureManager = textureManager;
         this.setupCanvasResize();
     }
@@ -159,7 +173,7 @@ class GameRenderer {
             this.canvas.height = window.innerHeight;
         };
         resize();
-        window.addEventListener('resize', resize);
+        window.addEventListener("resize", resize);
     }
 
     clear() {
@@ -185,7 +199,7 @@ class GameRenderer {
         const offsetY = this.canvas.height / 2;
 
         // Создаём Map для быстрого доступа к конечным объектам по id
-        const endMap = new Map(stateB.texture.map(item => [item[0], item]));
+        const endMap = new Map(stateB.texture.map((item) => [item[0], item]));
 
         for (const startItem of stateA.texture) {
             const [id, textureName, x1, y1, width, height, angle1] = startItem;
@@ -209,9 +223,11 @@ class GameClient {
         this.roomId = roomId;
         this.socket = null;
         this.textureManager = new TextureManager();
-        this.renderer = new GameRenderer('gameCanvas', this.textureManager);
+        this.renderer = new GameRenderer("gameCanvas", this.textureManager);
         this.interpolator = new StateInterpolator();
-        this.inputController = new InputController((data) => this.sendData(data));
+        this.inputController = new InputController((data) =>
+            this.sendData(data),
+        );
 
         this.setupWebSocket();
         this.setupUI();
@@ -227,8 +243,8 @@ class GameClient {
 
         this.socket.onclose = (event) => {
             if (event.code === 1006 || !event.wasClean) {
-                alert('Ошибка подключения к серверу');
-                window.location.href = '/';
+                alert("Ошибка подключения к серверу");
+                window.location.href = "/";
             }
         };
 
@@ -254,15 +270,15 @@ class GameClient {
     }
 
     setupUI() {
-        const roomIdElement = document.getElementById('room_id');
+        const roomIdElement = document.getElementById("room_id");
         if (roomIdElement) {
             roomIdElement.textContent = `Код комнаты: ${this.roomId}`;
         }
 
-        const startButton = document.getElementById('start-button');
+        const startButton = document.getElementById("start-button");
         if (startButton) {
-            startButton.addEventListener('click', () => {
-                this.sendData(['start']);
+            startButton.addEventListener("click", () => {
+                this.sendData(["start"]);
             });
         }
     }
@@ -288,27 +304,27 @@ class GameClient {
             this.renderer.renderInterpolatedState(
                 interpolated.startState,
                 interpolated.endState,
-                interpolated.t
+                interpolated.t,
             );
         } else if (interpolated.state) {
             // Рендер без интерполяции (последнее известное состояние)
             this.renderer.renderInterpolatedState(
                 interpolated.state,
                 interpolated.state,
-                0
+                0,
             );
         }
     }
 }
 
 // ---------- Инициализация ----------
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const roomId = urlParams.get('id');
+    const roomId = urlParams.get("id");
 
     if (!roomId) {
-        alert('Не указан ID комнаты');
-        window.location.href = '/';
+        alert("Не указан ID комнаты");
+        window.location.href = "/";
         return;
     }
 

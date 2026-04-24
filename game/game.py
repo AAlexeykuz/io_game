@@ -30,6 +30,9 @@ class GameObject:
     def set_angle(self, angle: float) -> None:
         self.angle = angle
 
+    def get_front_angle(self) -> float:
+        return (self.angle - math.pi / 2) % (2 * math.pi)
+
     def get_bounds(self) -> tuple[float, float, float, float]:
         left = self.x - self.width / 2
         rigth = self.x + self.width / 2
@@ -163,16 +166,16 @@ class Game:
         if player_id in self.players:
             del self.players[player_id]
 
-    def add_bullet(self, player_id: int, angle: float) -> None:
+    def add_bullet(self, player_id: int) -> None:
         player = self.players[player_id]
         bullet_id = self.id_pool.get_new_id()
         bullet = Bullet(
             obj_id=bullet_id,
             x=player.x,
             y=player.y,
-            width=20,
-            height=20,
-            angle=angle,
+            width=75,
+            height=45,
+            angle=player.get_front_angle(),
             speed=300.0,
             owner_id=player_id,
             max_lifetime=3.0,
@@ -267,9 +270,10 @@ class Game:
         if "movement" in client_input:
             self.players[player_id].set_velocity(*client_input["movement"])
         if "angle" in client_input:
+            print(client_input)
             self.players[player_id].set_angle(client_input["angle"])
         if "shoot" in client_input:
-            self.add_bullet(player_id, client_input["shoot"])
+            self.add_bullet(player_id)
 
     async def _game_loop(self) -> None:
         """Главный цикл игры"""
