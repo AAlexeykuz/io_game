@@ -42,11 +42,19 @@ class TextureComponent:
         self.texture_height = texture_height
 
 
-class TextureObject(GameObject, TextureComponent):
-    pass
+class RectCollisionComponent:
+    def __init__(
+        self,
+        collision_width: float,
+        collision_height: float,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.collision_width = collision_width
+        self.collision_height = collision_height
 
 
-class Bullet(TextureObject):
+class Bullet(GameObject, TextureComponent):
     def __init__(
         self,
         obj_id: int,
@@ -83,7 +91,7 @@ class Bullet(TextureObject):
         return self.age >= self.max_lifetime
 
 
-class Player(TextureObject):
+class Player(GameObject, TextureComponent):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
@@ -130,8 +138,11 @@ class Game:
         self, websockets: dict[int, WebSocket], id_pool: IDPool
     ) -> None:
         self.websockets = websockets  # websockets от комнаты
+
+        # game objects
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
         self.bullets: dict[int, Bullet] = {}  # id пули -> Bullet
+
         self.id_pool = id_pool
         # переменные для цикла
         self._lock = asyncio.Lock()
@@ -191,7 +202,7 @@ class Game:
         self.remove_bullets(delta_time)
 
     def _get_texture_objects(self) -> list["TextureObject"]:
-        return list((self.players | self.bullets).values())
+        return list((self.players | self.bullets).values())  # type: ignore
 
     def _get_client_info(self, player_id: int) -> dict:
         """Возвращает всю визуальную информацию для данного игрока
@@ -293,41 +304,16 @@ class CollisionManager:
     def __init__(self) -> None:
         pass
 
-    def rect_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
-        l1, r1, t1, b1 = obj1.get_bounds()  # пока сломано
-        l2, r2, t2, b2 = obj2.get_bounds()
-        return not (r1 <= l2 or l1 >= r2 or b1 <= t2 or t1 >= b2)
+    def check_collision(
+        object1: "RectCollisionObject", object2: "RectCollisionObject"
+    ) -> bool:
+        pass
 
-    def resolve_collision(self, obj1: GameObject, obj2: GameObject) -> None:
-        l1, r1, t1, b1 = obj1.get_bounds()
-        l2, r2, t2, b2 = obj2.get_bounds()
-        # вычисляем пересечение
-        overlap_left = r1 - l2
-        overlap_right = l1 - r2
-        overlap_top = b1 - t2
-        overlap_bottom = b2 - t1
 
-        min_overlap = min(
-            overlap_left, overlap_right, overlap_top, overlap_bottom
-        )
+if TYPE_CHECKING:
 
-        # Смещение по x
-        if min_overlap == (overlap_right, overlap_left):
-            if overlap_left < overlap_right:
-                dx = -overlap_left
-            else:
-                dx = overlap_right
-            dy = 0
-        # Смещение по y
-        else:
-            if overlap_top < overlap_bottom:
-                dy = -overlap_top
-            else:
-                dy = overlap_bottom
-            dx = 0
+    class TextureObject(GameObject, TextureComponent):
+        pass
 
-        # Смещение двух объектов (для игроков, для неподвижных препятствий второй объект сдвигаться не должен)
-        obj1.x += dx / 2
-        obj2.x += dx / 2
-        obj1.y -= dy / 2
-        obj2.y -= dy / 2
+    class RectCollisionObject(GameObject, RectCollisionComponent):
+        pass
