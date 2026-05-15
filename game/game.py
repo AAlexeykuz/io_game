@@ -4,6 +4,7 @@ import logging
 import math
 import random
 import sys
+from typing import TYPE_CHECKING
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -12,20 +13,13 @@ from game.id_pool import IDPool
 
 class GameObject:
     def __init__(
-        self,
-        obj_id: int,
-        x: float,
-        y: float,
-        angle: float,
-        width: float,
-        height: float,
+        self, obj_id: int, x: float, y: float, angle: float, **kwargs
     ) -> None:
+        super().__init__(**kwargs)
         self.id: int = obj_id
         self.x: float = x  # игровые единицы
         self.y: float = y  # игровые единицы
         self.angle: float = angle  # радианы
-        self.width: float = width
-        self.height: float = height
 
     def set_angle(self, angle: float) -> None:
         self.angle = angle
@@ -33,27 +27,23 @@ class GameObject:
     def get_front_angle(self) -> float:
         return (self.angle - math.pi / 2) % (2 * math.pi)
 
-    def get_bounds(self) -> tuple[float, float, float, float]:
-        left = self.x - self.width / 2
-        rigth = self.x + self.width / 2
-        top = self.y + self.height / 2
-        bottom = self.y - self.height / 2
-        return left, rigth, top, bottom
 
-
-class TextureObject(GameObject):
+class TextureComponent:
     def __init__(
         self,
-        obj_id: int,
-        x: float,
-        y: float,
-        angle: float,
         texture_path: str,
-        width: float,
-        height: float,
+        texture_width: float,
+        texture_height: float,
+        **kwargs,
     ) -> None:
-        super().__init__(obj_id, x, y, angle, width, height)
+        super().__init__(**kwargs)
         self.texture_path = texture_path
+        self.texture_width = texture_width
+        self.texture_height = texture_height
+
+
+class TextureObject(GameObject, TextureComponent):
+    pass
 
 
 class Bullet(TextureObject):
@@ -70,37 +60,27 @@ class Bullet(TextureObject):
         max_lifetime: float,  # секунд до автоудаления
     ) -> None:
         super().__init__(
-            obj_id,
-            x,
-            y,
-            angle,
-            "mentos.png",
-            width,
-            height,
+            obj_id=obj_id,
+            x=x,
+            y=y,
+            angle=angle,
+            texture_path="mentos.png",
+            texture_width=width,
+            texture_height=height,
         )
         self.speed = speed
         self.owner_id = owner_id
-        self.max_lifetime = max_lifetime  # это тоже
-        self.age = 0.0  # Это не нужно, удалить.
+        self.max_lifetime = max_lifetime
+        self.age = 0.0
 
-    def update(
-        self, delta_time: float
-    ) -> None:  # Обновление позиции и возраста пули
+    def update(self, delta_time: float) -> None:
+        """Обновление позиции и возраста пули"""
         self.x += self.speed * math.cos(self.angle) * delta_time
         self.y += self.speed * math.sin(self.angle) * delta_time
         self.age += delta_time
 
-    def check_age(self) -> bool:  # проверка возраста пули
+    def check_age(self) -> bool:
         return self.age >= self.max_lifetime
-
-    # пока не используется
-    def if_out_of_map(
-        self, world_width: float, world_height: float
-    ) -> bool:  # проверка, что пуля не выходит за карту
-        left, right, top, bottom = self.get_bounds()
-        return (
-            right < 0 or left > world_width or bottom < 0 or top > world_height
-        )
 
 
 class Player(TextureObject):
@@ -109,13 +89,13 @@ class Player(TextureObject):
     def __init__(self, obj_id: int, x: float, y: float) -> None:
         texture_path = random.choice(["fanta.png", "coca.png", "sprite.png"])
         super().__init__(
-            obj_id,
-            x,
-            y,
-            0,
-            texture_path,
-            50,
-            150,
+            obj_id=obj_id,
+            x=x,
+            y=y,
+            angle=0,
+            texture_path=texture_path,
+            texture_width=50,
+            texture_height=150,
         )  # временно захардкодено
 
         self.vx: float = 0.0
@@ -210,7 +190,7 @@ class Game:
             player.move(delta_time)
         self.remove_bullets(delta_time)
 
-    def _get_texture_objects(self) -> list[TextureObject]:
+    def _get_texture_objects(self) -> list["TextureObject"]:
         return list((self.players | self.bullets).values())
 
     def _get_client_info(self, player_id: int) -> dict:
@@ -239,8 +219,8 @@ class Game:
                     texture_object.texture_path,
                     relative_x,  # относительная координата по x
                     relative_y,  # относительная координата по y
-                    texture_object.width,
-                    texture_object.height,
+                    texture_object.texture_width,
+                    texture_object.texture_height,
                     texture_object.angle,
                 ]
             )
@@ -314,7 +294,7 @@ class CollisionManager:
         pass
 
     def rect_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
-        l1, r1, t1, b1 = obj1.get_bounds()
+        l1, r1, t1, b1 = obj1.get_bounds()  # пока сломано
         l2, r2, t2, b2 = obj2.get_bounds()
         return not (r1 <= l2 or l1 >= r2 or b1 <= t2 or t1 >= b2)
 
