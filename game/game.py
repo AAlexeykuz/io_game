@@ -52,7 +52,14 @@ class CircleCollisionComponent:
         self.collision_radius = collision_radius
 
 
-class Bullet(GameObject, TextureComponent):
+def are_colliding(
+    object_1: "CircleCollisionObject", object_2: "CircleCollisionObject"
+) -> bool:
+    distance = math.dist((object_1.x, object_1.y), (object_2.x, object_2.y))
+    return distance < object_1.collision_radius + object_2.collision_radius
+
+
+class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
     def __init__(
         self,
         obj_id: int,
@@ -64,6 +71,8 @@ class Bullet(GameObject, TextureComponent):
         speed: float,  # скорость пули
         owner_id: int,  # id игрока, отправившего пулю
         max_lifetime: float,  # секунд до автоудаления
+        damage: float,
+        collision_radius: float,
     ) -> None:
         super().__init__(
             obj_id=obj_id,
@@ -73,11 +82,13 @@ class Bullet(GameObject, TextureComponent):
             texture_path="mentos.png",
             texture_width=width,
             texture_height=height,
+            collision_radius=collision_radius,
         )
-        self.speed = speed
-        self.owner_id = owner_id
-        self.max_lifetime = max_lifetime
-        self.age = 0.0
+        self.damage: float = damage
+        self.speed: float = speed
+        self.owner_id: int = owner_id
+        self.max_lifetime: float = max_lifetime
+        self.age: float = 0.0
 
     def update(self, delta_time: float) -> None:
         """Обновление позиции и возраста пули"""
@@ -89,7 +100,7 @@ class Bullet(GameObject, TextureComponent):
         return self.age >= self.max_lifetime
 
 
-class Player(GameObject, TextureComponent):
+class Player(GameObject, TextureComponent, CircleCollisionComponent):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
@@ -100,9 +111,12 @@ class Player(GameObject, TextureComponent):
             y=y,
             angle=0,
             texture_path=texture_path,
-            texture_width=50,
-            texture_height=150,
+            texture_width=100,
+            texture_height=100,
+            collision_radius=65,
         )  # временно захардкодено
+
+        self.health: float = 100
 
         self.vx: float = 0.0
         self.vy: float = 0.0
@@ -162,19 +176,21 @@ class Game:
             obj_id=bullet_id,
             x=player.x,
             y=player.y,
-            width=75,
+            width=45,
             height=45,
             angle=player.get_front_angle(),
-            speed=300.0,
+            speed=500.0,
             owner_id=player_id,
             max_lifetime=3.0,
+            damage=5,
+            collision_radius=5,
         )
         self.bullets[bullet_id] = bullet
 
-    def remove_timed_out_bullets(self) -> None:  # удаление пули из списка
-        for bullet_id, bullet in self.bullets.items():
+    def _remove_timed_out_bullets(self) -> None:  # удаление пули из списка
+        for bullet in list(self.bullets.values()):
             if bullet.check_age():
-                del self.bullets[bullet_id]
+                del self.bullets[bullet.id]
 
     def start_loop(self) -> None:
         if self._loop_task is None or self._loop_task.done():
@@ -192,10 +208,27 @@ class Game:
         # игроки
         for player in self.players.values():
             player.move(delta_time)
-        # пули
+        # жизненный цикл пуль
         for bullet in self.bullets.values():
             bullet.update(delta_time)
-        self.remove_timed_out_bullets()
+        self._remove_timed_out_bullets()
+        # коллизии
+        self._resolve_collisions()
+
+    def _resolve_bullet_player_collision(
+        self, bullet: Bullet, player: Player
+    ) -> None:
+        player.health -= bullet.damage
+        del self.bullets[bullet.id]
+
+    def _resolve_collisions(self) -> None:
+        # пули-игроки
+        for bullet in list(self.bullets.values()):
+            for player in list(self.players.values()):
+                if bullet.owner_id == player.id:
+                    continue
+                if are_colliding(bullet, player):  # type: ignore
+                    self._resolve_bullet_player_collision(bullet, player)
 
     def _get_texture_objects(self) -> list["TextureObject"]:
         return list((self.players | self.bullets).values())  # type: ignore
@@ -257,7 +290,6 @@ class Game:
         if "movement" in client_input:
             self.players[player_id].set_velocity(*client_input["movement"])
         if "angle" in client_input:
-            print(client_input)
             self.players[player_id].set_angle(client_input["angle"])
         if "shoot" in client_input:
             self.add_bullet(player_id)
@@ -294,17 +326,6 @@ class Game:
                 "Unexpected exception in a game loop",
                 exc_info=sys.exc_info(),
             )
-
-
-class CollisionManager:
-    def __init__(self) -> None:
-        pass
-
-    @staticmethod
-    def check_collision(
-        object1: "CircleCollisionObject", object2: "CircleCollisionObject"
-    ) -> bool:
-        pass
 
 
 if TYPE_CHECKING:
