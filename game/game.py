@@ -107,15 +107,15 @@ class Player(TextureObject):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        texture_path = random.choice(["fanta.png", "coca.png", "sprite.png"])
+        texture_path = random.choice(["Adaptant_V1.png", "Akiperic_V1.png", "Aslanec_V!.png", "BrokenCode_V1.png", "Fideranec_V1.png", "Frik_V1.png", "Patchist_V!.png", "SLOR_V1.png"])
         super().__init__(
             obj_id,
             x,
             y,
             0,
             texture_path,
-            50,
-            150,
+            100,
+            100,
         )  # временно захардкодено
 
         self.vx: float = 0.0
