@@ -42,16 +42,14 @@ class TextureComponent:
         self.texture_height = texture_height
 
 
-class RectCollisionComponent:
+class CircleCollisionComponent:
     def __init__(
         self,
-        collision_width: float,
-        collision_height: float,
+        collision_radius: float,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.collision_width = collision_width
-        self.collision_height = collision_height
+        self.collision_radius = collision_radius
 
 
 class Bullet(GameObject, TextureComponent):
@@ -173,16 +171,10 @@ class Game:
         )
         self.bullets[bullet_id] = bullet
 
-    def remove_bullets(
-        self, delta_time: float
-    ) -> None:  # удаление пули из списка
-        delete_bullets = []
+    def remove_timed_out_bullets(self) -> None:  # удаление пули из списка
         for bullet_id, bullet in self.bullets.items():
-            bullet.update(delta_time)
-            if bullet.check_age():  # позже добавить bullet.if_out_of_map(self.WORLD_WIDTH, self.WORLD_HEIGHT)
-                delete_bullets.append(bullet_id)
-        for del_bullet in delete_bullets:
-            del self.bullets[del_bullet]
+            if bullet.check_age():
+                del self.bullets[bullet_id]
 
     def start_loop(self) -> None:
         if self._loop_task is None or self._loop_task.done():
@@ -197,9 +189,13 @@ class Game:
                 await self._loop_task
 
     def _tick(self, delta_time: float) -> None:
+        # игроки
         for player in self.players.values():
             player.move(delta_time)
-        self.remove_bullets(delta_time)
+        # пули
+        for bullet in self.bullets.values():
+            bullet.update(delta_time)
+        self.remove_timed_out_bullets()
 
     def _get_texture_objects(self) -> list["TextureObject"]:
         return list((self.players | self.bullets).values())  # type: ignore
@@ -304,8 +300,9 @@ class CollisionManager:
     def __init__(self) -> None:
         pass
 
+    @staticmethod
     def check_collision(
-        object1: "RectCollisionObject", object2: "RectCollisionObject"
+        object1: "CircleCollisionObject", object2: "CircleCollisionObject"
     ) -> bool:
         pass
 
@@ -315,5 +312,5 @@ if TYPE_CHECKING:
     class TextureObject(GameObject, TextureComponent):
         pass
 
-    class RectCollisionObject(GameObject, RectCollisionComponent):
+    class CircleCollisionObject(GameObject, CircleCollisionComponent):
         pass
