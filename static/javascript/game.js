@@ -37,8 +37,6 @@ const MathUtils = {
 
 // ---------- Контроллер ввода ----------
 class InputController {
-    static musicStarted = false; // флаг для отслеживания музыки
-
     constructor(sendCallback) {
         this.sendData = sendCallback; // функция отправки данных на сервер
         this.movement = {
@@ -81,18 +79,7 @@ class InputController {
     }
 
     handleMouseClick(event) {
-        // Отправка выстрела
         this.sendData({ shoot: true });
-    
-        // Запускаем музыку при первом клике
-        if (!InputController.musicStarted) {
-            if (window.MusicManager) {
-                window.MusicManager.start();
-                InputController.musicStarted = true;
-            } else {
-                console.warn("MusicManager не найден. Проверьте подключение music.js");
-            }
-        }
     }
 
     updateDirection() {
@@ -125,7 +112,7 @@ class TextureManager {
 // ---------- Интерполятор состояний ----------
 class StateInterpolator {
     constructor() {
-        this.states = []; // { timestamp, texture }
+        this.states = [];
     }
 
     addState(textureData, textData, mapData) {
@@ -203,31 +190,6 @@ class GameRenderer {
 
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // if (
-        //     this.mapRadius === null ||
-        //     this.mapCenterX === null ||
-        //     this.mapCenterY === null
-        // )
-        //     return;
-
-        // const offsetX = this.canvas.width / 2;
-        // const offsetY = this.canvas.height / 2;
-
-        // console.log(this.mapRadius, this.mapCenterX, this.mapCenterY);
-        // this.ctx.save();
-        // this.ctx.beginPath();
-        // // Рисуем круг с центром в (offsetX, offsetY)
-        // this.ctx.arc(
-        //     this.mapCenterX + offsetX,
-        //     this.mapCenterY + offsetY,
-        //     this.mapRadius,
-        //     0,
-        //     Math.PI * 2,
-        // );
-        // this.ctx.fillStyle = "#ffffff"; // Белый цвет внутренней зоны
-        // this.ctx.fill();
-        // this.ctx.restore();
     }
 
     drawTexture(textureName, x, y, width, height, angle) {
@@ -325,7 +287,6 @@ class GameRenderer {
 
             const [, , x2, y2] = endItem;
 
-            // Интерполируем позицию текста для плавного перемещения
             const x = MathUtils.lerp(x1, x2, t) + offsetX;
             const y = MathUtils.lerp(y1, y2, t) + offsetY;
 
@@ -345,16 +306,17 @@ class GameClient {
         this.inputController = new InputController((data) =>
             this.sendData(data),
         );
-
-        this.setupWebSocket();
+        this.username = prompt("Введите ник игрока");
         this.setupUI();
         this.startGameLoop();
+        this.setupWebSocket();
     }
 
     setupWebSocket() {
         const hostname = window.location.hostname;
         const wsUrl = new URL(`/rooms/${this.roomId}`, `ws://${hostname}`);
         wsUrl.port = GameConfig.WEBSOCKET_PORT;
+        wsUrl.searchParams.append("nickname", this.username);
 
         this.socket = new WebSocket(wsUrl);
 
@@ -446,11 +408,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.gameClient = new GameClient(roomId);
-});
-
-// Остановка музыки при закрытии вкладки или перезагрузке
-window.addEventListener('beforeunload', () => {
-    if (window.MusicManager) {
-        window.MusicManager.stop();
-    }
 });

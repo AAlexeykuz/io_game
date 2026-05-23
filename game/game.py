@@ -121,10 +121,15 @@ class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
 
 class Player(GameObject, TextureComponent, CircleCollisionComponent):
     speed: float = 300
-    text_label_offset: float = 65
+    nickname_offset: float = 65
 
     def __init__(
-        self, obj_id: int, text_label_id: int, x: float, y: float
+        self,
+        obj_id: int,
+        nickname_label_id: int,
+        x: float,
+        y: float,
+        nickname: str,
     ) -> None:
         texture_path = "Characters/" + random.choice(
             [
@@ -154,7 +159,8 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
         self.vx: float = 0.0
         self.vy: float = 0.0
 
-        self.text_label_id: int = text_label_id
+        self.nick_label_id: int = nickname_label_id
+        self.nickname: str = nickname
 
     @property
     def is_dead(self) -> bool:
@@ -198,13 +204,14 @@ class Game:
             player for player in self.players.values() if not player.is_dead
         ]
 
-    def add_player(self, player_id) -> None:
+    def add_player(self, player_id: int, nickname: str) -> None:
         if player_id not in self.players:
             self.players[player_id] = Player(
                 obj_id=player_id,
-                text_label_id=self.id_pool.get_new_id(),
+                nickname_label_id=self.id_pool.get_new_id(),
                 x=0,
                 y=0,
+                nickname=nickname,
             )
 
     def remove_player(self, player_id) -> None:
@@ -334,10 +341,10 @@ class Game:
 
             text_objects_to_show.append(
                 [
-                    player.text_label_id,
-                    str(player.health),
+                    player.nick_label_id,
+                    player.nickname,
                     relative_x,
-                    relative_y + player.text_label_offset,
+                    relative_y + player.nickname_offset,
                 ]
             )
         return text_objects_to_show

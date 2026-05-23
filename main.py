@@ -32,6 +32,7 @@ class Room:
     def __init__(self, room_id: str) -> None:
         self.id: str = room_id
         self.players: dict[int, WebSocket] = {}  # id из id_pool -> Websocket
+        self.player_nicknames: dict[int, str] = {}  # id игрока -> ник
         self.is_private: bool = True
 
         self._id_pool = IDPool()
@@ -49,12 +50,13 @@ class Room:
             "status": self.get_status(),
         }
 
-    async def connect(self, websocket: WebSocket) -> int:
+    async def connect(self, websocket: WebSocket, nickname: str) -> int:
         await websocket.accept()
         player_id = self._id_pool.get_new_id()
-        if self._game:
-            self._game.add_player(player_id)
         self.players[player_id] = websocket
+        self.player_nicknames[player_id] = nickname
+        if self._game:
+            self._game.add_player(player_id, nickname)
         return player_id
 
     def disconnect(self, player_id: int) -> None:
@@ -77,7 +79,7 @@ class Room:
     def start_game(self) -> None:
         self._game = Game(self.players, self._id_pool)
         for player_id in self.players:
-            self._game.add_player(player_id)
+            self._game.add_player(player_id, self.player_nicknames[player_id])
         self._game.start_loop()
 
 
@@ -154,11 +156,11 @@ async def create_room() -> dict:
 
 
 @app.websocket("/rooms/{room_id}")
-async def join_room(websocket: WebSocket, room_id: str) -> None:
+async def join_room(websocket: WebSocket, room_id: str, nickname: str) -> None:
     room = room_manager.get_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="Комната не найдена")
-    player_id = await room.connect(websocket)
+    player_id = await room.connect(websocket, nickname)
     logging.info(f"Client {player_id} joined {room_id}")
     try:
         while True:
