@@ -10,7 +10,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from game.id_pool import IDPool
 
-MAX_VISIBILITY_RADIUS_SQUARED: float = 1000**2
+MAX_VISIBILITY_RADIUS: float = 1000
+MAX_VISIBILITY_RADIUS_SQUARED: float = MAX_VISIBILITY_RADIUS**2
 
 
 def is_visible(relative_x: float, relative_y: float) -> bool:
@@ -270,7 +271,6 @@ class Game:
         border_distance = center_distance - self.MAP_RADIUS
         shift_x = direction_x * border_distance
         shift_y = direction_y * border_distance
-        print("SHIFT", shift_x, shift_y)
         player.shift(shift_x, shift_y)
 
     def _resolve_collisions(self) -> None:
@@ -355,6 +355,7 @@ class Game:
         return {
             "texture": self._get_texture_objects_to_show(player.x, player.y),
             "text": self._get_text_objects_to_show(player.x, player.y),
+            "map": [self.MAP_RADIUS, -player.x, -player.y],
         }
 
     async def _broadcast_client_info(

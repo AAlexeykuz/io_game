@@ -115,11 +115,12 @@ class StateInterpolator {
         this.states = []; // { timestamp, texture }
     }
 
-    addState(textureData, textData) {
+    addState(textureData, textData, mapData) {
         this.states.push({
             timestamp: Date.now(),
             texture: textureData || [],
             text: textData || [],
+            map: mapData ? [...mapData] : null,
         });
 
         if (this.states.length > GameConfig.MAX_STATE_BUFFER_SIZE) {
@@ -166,6 +167,9 @@ class GameRenderer {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext("2d");
         this.textureManager = textureManager;
+        this.mapRadius = null;
+        this.mapCenterX = null;
+        this.mapCenterY = null;
         this.setupCanvasResize();
     }
 
@@ -178,8 +182,39 @@ class GameRenderer {
         window.addEventListener("resize", resize);
     }
 
+    setMapInfo(mapRadius, mapCenterX, mapCenterY) {
+        this.mapRadius = mapRadius;
+        this.mapCenterX = mapCenterX;
+        this.mapCenterY = mapCenterY;
+    }
+
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // if (
+        //     this.mapRadius === null ||
+        //     this.mapCenterX === null ||
+        //     this.mapCenterY === null
+        // )
+        //     return;
+
+        // const offsetX = this.canvas.width / 2;
+        // const offsetY = this.canvas.height / 2;
+
+        // console.log(this.mapRadius, this.mapCenterX, this.mapCenterY);
+        // this.ctx.save();
+        // this.ctx.beginPath();
+        // // Рисуем круг с центром в (offsetX, offsetY)
+        // this.ctx.arc(
+        //     this.mapCenterX + offsetX,
+        //     this.mapCenterY + offsetY,
+        //     this.mapRadius,
+        //     0,
+        //     Math.PI * 2,
+        // );
+        // this.ctx.fillStyle = "#ffffff"; // Белый цвет внутренней зоны
+        // this.ctx.fill();
+        // this.ctx.restore();
     }
 
     drawTexture(textureName, x, y, width, height, angle) {
@@ -193,6 +228,26 @@ class GameRenderer {
         this.ctx.restore();
     }
 
+    drawMap(radius, centerX, centerY) {
+        if (radius === null || centerX === null || centerY === null) return;
+
+        const offsetX = this.canvas.width / 2;
+        const offsetY = this.canvas.height / 2;
+
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(
+            centerX + offsetX,
+            centerY + offsetY,
+            radius,
+            0,
+            Math.PI * 2,
+        );
+        this.ctx.fillStyle = "#ffffff"; // Цвет игровой зона
+        this.ctx.fill();
+        this.ctx.restore();
+    }
+
     drawText(text, x, y) {
         this.ctx.save();
         this.ctx.font = "16px Arial";
@@ -200,7 +255,7 @@ class GameRenderer {
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
 
-        // обводка
+        // обводка текста
         this.ctx.strokeStyle = "#000000";
         this.ctx.lineWidth = 4;
         this.ctx.strokeText(text, x, y);
@@ -216,8 +271,21 @@ class GameRenderer {
         const offsetX = this.canvas.width / 2;
         const offsetY = this.canvas.height / 2;
 
+        // КАРТА
+        if (stateA.map && stateB.map) {
+            const [r1, x1, y1] = stateA.map;
+            const [r2, x2, y2] = stateB.map;
+
+            const radius = MathUtils.lerp(r1, r2, t);
+            const centerX = MathUtils.lerp(x1, x2, t);
+            const centerY = MathUtils.lerp(y1, y2, t);
+
+            this.drawMap(radius, centerX, centerY);
+        } else if (stateA.map) {
+            this.drawMap(stateA.map[0], stateA.map[1], stateA.map[2]);
+        }
+
         // ТЕКСТУРЫ
-        // Создаём Map для быстрого доступа к конечным объектам по id
         const endMap = new Map(stateB.texture.map((item) => [item[0], item]));
 
         for (const startItem of stateA.texture) {
@@ -294,8 +362,8 @@ class GameClient {
             alert(data.alert);
         }
 
-        if (data.texture || data.text) {
-            this.interpolator.addState(data.texture, data.text);
+        if (data.texture || data.text || data.map) {
+            this.interpolator.addState(data.texture, data.text, data.map);
         }
     }
 
