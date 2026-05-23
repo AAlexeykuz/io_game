@@ -120,6 +120,7 @@ class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
 
 
 class Player(GameObject, TextureComponent, CircleCollisionComponent):
+    INITIAL_HEALTH: float = 100
     speed: float = 300
     nickname_offset: float = 65
 
@@ -154,13 +155,15 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
             collision_radius=65,
         )  # временно захардкодено
 
-        self.health: float = 100
+        self.health: float = 0
 
         self.vx: float = 0.0
         self.vy: float = 0.0
 
         self.nick_label_id: int = nickname_label_id
         self.nickname: str = nickname
+
+        self.revive()
 
     @property
     def is_dead(self) -> bool:
@@ -177,6 +180,13 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
         """
         self.x += self.vx * self.speed * delta_time
         self.y += self.vy * self.speed * delta_time
+
+    def revive(self) -> None:
+        self.health = 100
+        # в будущем будем рандомно генерировать
+        self.x = 0
+        self.y = 0
+        self.angle = 0
 
 
 class Game:
@@ -389,6 +399,10 @@ class Game:
             player_id (int): ID вебсокета клиента
         """
         player = self.players[player_id]
+
+        if "restart" in client_input:
+            player.revive()
+            return
 
         # in-game actions
         if player.is_dead:
