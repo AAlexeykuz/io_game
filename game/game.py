@@ -104,7 +104,7 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
     speed: float = 300
 
     def __init__(self, obj_id: int, x: float, y: float) -> None:
-        texture_path = random.choice(
+        texture_path = "Characters/" + random.choice(
             [
                 "Adaptant_V1.png",
                 "Akiperic_V1.png",
