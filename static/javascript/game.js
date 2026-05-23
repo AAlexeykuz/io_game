@@ -347,13 +347,47 @@ class GameClient {
     handleMessage(event) {
         const data = JSON.parse(event.data);
 
-        if (data.alert) {
-            alert(data.alert);
-        }
+        if (data.alert) alert(data.alert);
 
-        if (data.texture || data.text || data.map) {
+        if (data.texture || data.text || data.map)
             this.interpolator.addState(data.texture, data.text, data.map);
+
+        if (data.dead) {
+            this.showRestartButton();
         }
+    }
+
+    showRestartButton() {
+        // Проверяем, чтобы кнопка уже не была на экране
+        if (document.getElementById("restart-btn")) return;
+
+        const button = document.createElement("button");
+        button.id = "restart-btn";
+        button.innerText = "Начать заново";
+
+        // Стили перенести в CSS
+        Object.assign(button.style, {
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            padding: "15px 30px",
+            fontSize: "20px",
+            zIndex: "1000",
+            cursor: "pointer",
+            backgroundColor: "#ff4757",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+        });
+
+        button.onclick = () => {
+            button.remove();
+            this.sendData({ restart: true });
+        };
+
+        document.body.appendChild(button);
     }
 
     sendData(data) {

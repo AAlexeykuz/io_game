@@ -359,11 +359,14 @@ class Game:
             dict: json с визуальными данными
         """
         player = self.players[player_id]
-        return {
+        client_info = {
             "texture": self._get_texture_objects_to_show(player.x, player.y),
             "text": self._get_text_objects_to_show(player.x, player.y),
             "map": [self.MAP_RADIUS, -player.x, -player.y],
         }
+        if player.is_dead:
+            client_info["dead"] = True
+        return client_info
 
     async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
