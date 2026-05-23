@@ -37,6 +37,8 @@ const MathUtils = {
 
 // ---------- Контроллер ввода ----------
 class InputController {
+    static musicStarted = false; // флаг для отслеживания музыки
+
     constructor(sendCallback) {
         this.sendData = sendCallback; // функция отправки данных на сервер
         this.movement = {
@@ -79,7 +81,18 @@ class InputController {
     }
 
     handleMouseClick(event) {
+        // Отправка выстрела
         this.sendData({ shoot: true });
+    
+        // Запускаем музыку при первом клике
+        if (!InputController.musicStarted) {
+            if (window.MusicManager) {
+                window.MusicManager.start();
+                InputController.musicStarted = true;
+            } else {
+                console.warn("MusicManager не найден. Проверьте подключение music.js");
+            }
+        }
     }
 
     updateDirection() {
@@ -329,4 +342,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.gameClient = new GameClient(roomId);
+});
+
+// Остановка музыки при закрытии вкладки или перезагрузке
+window.addEventListener('beforeunload', () => {
+    if (window.MusicManager) {
+        window.MusicManager.stop();
+    }
 });
