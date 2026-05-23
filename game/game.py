@@ -13,6 +13,10 @@ from game.id_pool import IDPool
 MAX_VISIBILITY_RADIUS_SQUARED: float = 1000**2
 
 
+def is_visible(relative_x: float, relative_y: float) -> bool:
+    return relative_x**2 + relative_y**2 < MAX_VISIBILITY_RADIUS_SQUARED
+
+
 class GameObject:
     def __init__(
         self, obj_id: int, x: float, y: float, angle: float, **kwargs
@@ -104,8 +108,11 @@ class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
 
 class Player(GameObject, TextureComponent, CircleCollisionComponent):
     speed: float = 300
+    text_label_offset: float = 65
 
-    def __init__(self, obj_id: int, x: float, y: float) -> None:
+    def __init__(
+        self, obj_id: int, text_label_id: int, x: float, y: float
+    ) -> None:
         texture_path = "Characters/" + random.choice(
             [
                 "Adaptant_V1.png",
@@ -133,6 +140,8 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
 
         self.vx: float = 0.0
         self.vy: float = 0.0
+
+        self.text_label_id: int = text_label_id
 
     @property
     def is_dead(self) -> bool:
@@ -184,7 +193,12 @@ class Game:
 
     def add_player(self, player_id) -> None:
         if player_id not in self.players:
-            self.players[player_id] = Player(player_id, 0, 0)
+            self.players[player_id] = Player(
+                obj_id=player_id,
+                text_label_id=self.id_pool.get_new_id(),
+                x=0,
+                y=0,
+            )
 
     def remove_player(self, player_id) -> None:
         if player_id in self.players:
@@ -252,7 +266,7 @@ class Game:
                     self._resolve_bullet_player_collision(bullet, player)
 
     def _get_texture_objects(self) -> list["TextureObject"]:
-        return list((self._get_alive_players() | self.bullets).values())  # type: ignore
+        return self._get_alive_players() + list(self.bullets.values())  # type: ignore
 
     def _get_texture_objects_to_show(
         self, camera_x: float, camera_y: float
@@ -263,7 +277,7 @@ class Game:
             relative_x = texture_object.x - camera_x
             relative_y = texture_object.y - camera_y
 
-            if relative_x**2 + relative_y**2 > MAX_VISIBILITY_RADIUS_SQUARED:
+            if not is_visible(relative_x, relative_y):
                 continue
 
             texture_objects_to_show.append(
@@ -283,6 +297,21 @@ class Game:
         self, camera_x: float, camera_y: float
     ) -> list:
         text_objects_to_show = []
+        for player in self._get_alive_players():
+            relative_x = player.x - camera_x
+            relative_y = player.y - camera_y
+
+            if not is_visible(relative_x, relative_y):
+                continue
+
+            text_objects_to_show.append(
+                [
+                    player.text_label_id,
+                    str(player.health),
+                    relative_x,
+                    relative_y + player.text_label_offset,
+                ]
+            )
         return text_objects_to_show
 
     def _get_client_info(self, player_id: int) -> dict:
@@ -295,13 +324,9 @@ class Game:
             dict: json с визуальными данными
         """
         player = self.players[player_id]
-        # центр камеры - позиция игрока, для которого предназначены данные
-        camera_x = player.x
-        camera_y = player.y
-
         return {
-            "texture": self._get_texture_objects_to_show(camera_x, camera_y),
-            "text": [],
+            "texture": self._get_texture_objects_to_show(player.x, player.y),
+            "text": self._get_text_objects_to_show(player.x, player.y),
         }
 
     async def _broadcast_client_info(

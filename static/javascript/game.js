@@ -115,11 +115,13 @@ class StateInterpolator {
         this.states = []; // { timestamp, texture }
     }
 
-    addState(textureData) {
+    addState(textureData, textData) {
         this.states.push({
             timestamp: Date.now(),
-            texture: textureData,
+            texture: textureData || [],
+            text: textData || [],
         });
+
         if (this.states.length > GameConfig.MAX_STATE_BUFFER_SIZE) {
             this.states.shift();
         }
@@ -191,6 +193,22 @@ class GameRenderer {
         this.ctx.restore();
     }
 
+    drawText(text, x, y) {
+        this.ctx.save();
+        this.ctx.font = "16px Arial";
+        this.ctx.fillStyle = "#ffffff";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+
+        // обводка
+        this.ctx.strokeStyle = "#000000";
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeText(text, x, y);
+
+        this.ctx.fillText(text, x, y);
+        this.ctx.restore();
+    }
+
     /**
      * Рисует интерполированное состояние
      */
@@ -198,6 +216,7 @@ class GameRenderer {
         const offsetX = this.canvas.width / 2;
         const offsetY = this.canvas.height / 2;
 
+        // ТЕКСТУРЫ
         // Создаём Map для быстрого доступа к конечным объектам по id
         const endMap = new Map(stateB.texture.map((item) => [item[0], item]));
 
@@ -213,6 +232,23 @@ class GameRenderer {
             const angle = MathUtils.lerpAngle(angle1, angle2, t);
 
             this.drawTexture(textureName, x, y, width, height, angle);
+        }
+
+        // ТЕКСТ
+        const endTextMap = new Map(stateB.text.map((item) => [item[0], item]));
+
+        for (const startItem of stateA.text) {
+            const [id, text, x1, y1] = startItem;
+            const endItem = endTextMap.get(id);
+            if (!endItem) continue;
+
+            const [, , x2, y2] = endItem;
+
+            // Интерполируем позицию текста для плавного перемещения
+            const x = MathUtils.lerp(x1, x2, t) + offsetX;
+            const y = MathUtils.lerp(y1, y2, t) + offsetY;
+
+            this.drawText(text, x, y);
         }
     }
 }
@@ -258,8 +294,8 @@ class GameClient {
             alert(data.alert);
         }
 
-        if (data.texture) {
-            this.interpolator.addState(data.texture);
+        if (data.texture || data.text) {
+            this.interpolator.addState(data.texture, data.text);
         }
     }
 
