@@ -10,6 +10,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from game.id_pool import IDPool
 
+MAX_VISIBILITY_RADIUS_SQUARED: float = 1000**2
+
 
 class GameObject:
     def __init__(
@@ -244,6 +246,37 @@ class Game:
     def _get_texture_objects(self) -> list["TextureObject"]:
         return list((self.players | self.bullets).values())  # type: ignore
 
+    def _get_texture_objects_to_show(
+        self, camera_x: float, camera_y: float
+    ) -> list:
+        texture_objects_to_show = []
+
+        for texture_object in self._get_texture_objects():
+            relative_x = texture_object.x - camera_x
+            relative_y = texture_object.y - camera_y
+
+            if relative_x**2 + relative_y**2 > MAX_VISIBILITY_RADIUS_SQUARED:
+                continue
+
+            texture_objects_to_show.append(
+                [
+                    texture_object.id,
+                    texture_object.texture_path,
+                    relative_x,
+                    relative_y,
+                    texture_object.texture_width,
+                    texture_object.texture_height,
+                    texture_object.angle,
+                ]
+            )
+        return texture_objects_to_show
+
+    def _get_text_objects_to_show(
+        self, camera_x: float, camera_y: float
+    ) -> list:
+        text_objects_to_show = []
+        return text_objects_to_show
+
     def _get_client_info(self, player_id: int) -> dict:
         """Возвращает всю визуальную информацию для данного игрока
 
@@ -258,25 +291,10 @@ class Game:
         camera_x = player.x
         camera_y = player.y
 
-        texture_objects_to_show = []
-
-        for texture_object in self._get_texture_objects():
-            # вычисление положение объекта, относительно текущего игрока
-            relative_x = texture_object.x - camera_x
-            relative_y = texture_object.y - camera_y
-            texture_objects_to_show.append(
-                [
-                    texture_object.id,
-                    texture_object.texture_path,
-                    relative_x,  # относительная координата по x
-                    relative_y,  # относительная координата по y
-                    texture_object.texture_width,
-                    texture_object.texture_height,
-                    texture_object.angle,
-                ]
-            )
-
-        return {"texture": texture_objects_to_show}
+        return {
+            "texture": self._get_texture_objects_to_show(camera_x, camera_y),
+            "text": [],
+        }
 
     async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
