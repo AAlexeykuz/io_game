@@ -311,18 +311,34 @@ class GameClient {
         this.setupUI();
         this.startGameLoop();
         this.setupWebSocket();
+        this.showUserlist();
     }
 
     setupUsername() {
         let name = prompt("Введите ник игрока");
+        this.userlist = [];
         name = name.trim();
         if (!name || name === "") {
             const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-значное число
             this.username = `Player ${randomNumber}`;
+            userlist.push(this.username);
         } else if (name.length > 20) {
             this.username = name.slice(0, 20);
+            userlist.push(this.username);
         } else {
             this.username = name;
+            this.userlist.push(this.username);
+        }
+    }
+
+    showUserlist() {
+        this.list = document.getElementById("userlist");
+
+        for (let i = 0; i < this.userlist.length; i++) {
+            this.li = document.createElement("li");
+            this.li.classList.add('section-userlist')
+            this.li.textContent = this.userlist[i];
+            this.list.appendChild(this.li);
         }
     }
 
@@ -457,3 +473,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.gameClient = new GameClient(roomId);
 });
+
