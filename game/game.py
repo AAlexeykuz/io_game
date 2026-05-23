@@ -134,6 +134,10 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
         self.vx: float = 0.0
         self.vy: float = 0.0
 
+    @property
+    def is_dead(self) -> bool:
+        return self.health <= 0
+
     def normalize_velocity(self) -> None:
         """Нормализует сохранённую скорость игрока"""
         length = (self.vx**2 + self.vy**2) ** 0.5
@@ -156,8 +160,7 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
 
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
-    """WORLD_WIDTH =   # ширина игравого поля
-    WORLD_HEIGHT =   # высота игрового поля"""
+    MAP_RADIUS: float = 2000
 
     def __init__(
         self, websockets: dict[int, WebSocket], id_pool: IDPool
@@ -173,6 +176,11 @@ class Game:
         self._lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
+
+    def _get_alive_players(self) -> list[Player]:
+        return [
+            player for player in self.players.values() if not player.is_dead
+        ]
 
     def add_player(self, player_id) -> None:
         if player_id not in self.players:
@@ -219,7 +227,7 @@ class Game:
 
     def _tick(self, delta_time: float) -> None:
         # игроки
-        for player in self.players.values():
+        for player in self._get_alive_players():
             player.move(delta_time)
         # жизненный цикл пуль
         for bullet in self.bullets.values():
@@ -237,14 +245,14 @@ class Game:
     def _resolve_collisions(self) -> None:
         # пули-игроки
         for bullet in list(self.bullets.values()):
-            for player in list(self.players.values()):
+            for player in self._get_alive_players():
                 if bullet.owner_id == player.id:
                     continue
                 if are_colliding(bullet, player):  # type: ignore
                     self._resolve_bullet_player_collision(bullet, player)
 
     def _get_texture_objects(self) -> list["TextureObject"]:
-        return list((self.players | self.bullets).values())  # type: ignore
+        return list((self._get_alive_players() | self.bullets).values())  # type: ignore
 
     def _get_texture_objects_to_show(
         self, camera_x: float, camera_y: float
@@ -316,10 +324,15 @@ class Game:
             client_input (str): Ввод клиента
             player_id (int): ID вебсокета клиента
         """
+        player = self.players[player_id]
+
+        # in-game actions
+        if player.is_dead:
+            return
         if "movement" in client_input:
-            self.players[player_id].set_velocity(*client_input["movement"])
+            player.set_velocity(*client_input["movement"])
         if "angle" in client_input:
-            self.players[player_id].set_angle(client_input["angle"])
+            player.set_angle(client_input["angle"])
         if "shoot" in client_input:
             self.add_bullet(player_id)
 
