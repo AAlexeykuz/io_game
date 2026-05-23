@@ -73,7 +73,10 @@ class Room:
                 self.start_game()
             else:
                 await self.players[player_id].send_json(
-                    {"alert": "Только хост может начать игру."}
+                    {
+                        "is_game_started": True,
+                        "alert": "Только хост может начать игру.",
+                    }
                 )
 
     def start_game(self) -> None:

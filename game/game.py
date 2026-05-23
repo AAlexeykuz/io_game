@@ -235,14 +235,14 @@ class Game:
             obj_id=bullet_id,
             x=player.x,
             y=player.y,
-            width=45,
-            height=45,
+            width=10,
+            height=10,
             angle=player.get_front_angle(),
             speed=500.0,
             owner_id=player_id,
             max_lifetime=3.0,
             damage=5,
-            collision_radius=5,
+            collision_radius=10,
         )
         self.bullets[bullet_id] = bullet
 
@@ -278,13 +278,25 @@ class Game:
         self, bullet: Bullet, player: Player
     ) -> None:
         player.health -= bullet.damage
-        del self.bullets[bullet.id]
+        # пуля может быть уже удалена, если столкнулась с двумя игроками
+        if bullet.id in self.bullets:
+            del self.bullets[bullet.id]
+
+    def _resolve_bullet_bullet_collision(
+        self,
+        bullet1: Bullet,
+        bullet2: Bullet,
+    ) -> None:
+        if bullet1.id in self.bullets:
+            del self.bullets[bullet1.id]
+        if bullet2.id in self.bullets:
+            del self.bullets[bullet2.id]
 
     def _resolve_player_map_collision(
         self, player: Player, center_distance: float
     ) -> None:
         direction_x, direction_y = normalize_vector(-player.x, -player.y)
-        # когда эта функция вызывается подразумевается, что center_distance > self.MAP_RADIUS
+        # когда эта функция вызывается, подразумевается, что center_distance > self.MAP_RADIUS
         border_distance = center_distance - self.MAP_RADIUS
         shift_x = direction_x * border_distance
         shift_y = direction_y * border_distance
@@ -298,6 +310,14 @@ class Game:
                     continue
                 if are_colliding(bullet, player):  # type: ignore
                     self._resolve_bullet_player_collision(bullet, player)
+        # пули-пули
+        for bullet1 in list(self.bullets.values()):
+            for bullet2 in list(self.bullets.values()):
+                if bullet1.id == bullet2.id:
+                    continue
+                if are_colliding(bullet1, bullet2):  # type: ignore
+                    print("BULLET-BULLET")
+                    self._resolve_bullet_bullet_collision(bullet1, bullet2)
         # пули-карта
         for bullet in list(self.bullets.values()):
             if bullet.x**2 + bullet.y**2 < self.MAP_RADIUS_SQUARED:
