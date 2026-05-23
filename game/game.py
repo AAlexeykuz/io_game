@@ -4,59 +4,81 @@ import logging
 import math
 import random
 import sys
+from typing import TYPE_CHECKING
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from game.id_pool import IDPool
 
+MAX_VISIBILITY_RADIUS: float = 1000
+MAX_VISIBILITY_RADIUS_SQUARED: float = MAX_VISIBILITY_RADIUS**2
+
+
+def is_visible(relative_x: float, relative_y: float) -> bool:
+    return relative_x**2 + relative_y**2 < MAX_VISIBILITY_RADIUS_SQUARED
+
+
+def normalize_vector(x: float, y: float) -> tuple[float, float]:
+    length = (x**2 + y**2) ** 0.5
+    if length != 0:
+        x /= length
+        y /= length
+    return x, y
+
 
 class GameObject:
     def __init__(
-        self,
-        obj_id: int,
-        x: float,
-        y: float,
-        angle: float,
-        width: float,
-        height: float,
+        self, obj_id: int, x: float, y: float, angle: float, **kwargs
     ) -> None:
+        super().__init__(**kwargs)
         self.id: int = obj_id
         self.x: float = x  # игровые единицы
         self.y: float = y  # игровые единицы
         self.angle: float = angle  # радианы
-        self.width: float = width
-        self.height: float = height
 
     def set_angle(self, angle: float) -> None:
         self.angle = angle
 
+    def shift(self, shift_x: float, shift_y: float) -> None:
+        self.x += shift_x
+        self.y += shift_y
+
     def get_front_angle(self) -> float:
         return (self.angle - math.pi / 2) % (2 * math.pi)
 
-    def get_bounds(self) -> tuple[float, float, float, float]:
-        left = self.x - self.width / 2
-        rigth = self.x + self.width / 2
-        top = self.y + self.height / 2
-        bottom = self.y - self.height / 2
-        return left, rigth, top, bottom
 
-
-class TextureObject(GameObject):
+class TextureComponent:
     def __init__(
         self,
-        obj_id: int,
-        x: float,
-        y: float,
-        angle: float,
         texture_path: str,
-        width: float,
-        height: float,
+        texture_width: float,
+        texture_height: float,
+        **kwargs,
     ) -> None:
-        super().__init__(obj_id, x, y, angle, width, height)
+        super().__init__(**kwargs)
         self.texture_path = texture_path
+        self.texture_width = texture_width
+        self.texture_height = texture_height
 
 
-class Bullet(TextureObject):
+class CircleCollisionComponent:
+    def __init__(
+        self,
+        collision_radius: float,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.collision_radius = collision_radius
+
+
+def are_colliding(
+    object_1: "CircleCollisionObject", object_2: "CircleCollisionObject"
+) -> bool:
+    distance = math.dist((object_1.x, object_1.y), (object_2.x, object_2.y))
+    return distance < object_1.collision_radius + object_2.collision_radius
+
+
+class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
     def __init__(
         self,
         obj_id: int,
@@ -68,70 +90,80 @@ class Bullet(TextureObject):
         speed: float,  # скорость пули
         owner_id: int,  # id игрока, отправившего пулю
         max_lifetime: float,  # секунд до автоудаления
+        damage: float,
+        collision_radius: float,
     ) -> None:
         super().__init__(
-            obj_id,
-            x,
-            y,
-            angle,
-            "mentos.png",
-            width,
-            height,
+            obj_id=obj_id,
+            x=x,
+            y=y,
+            angle=angle,
+            texture_path="mentos.png",
+            texture_width=width,
+            texture_height=height,
+            collision_radius=collision_radius,
         )
-        self.speed = speed
-        self.owner_id = owner_id
-        self.max_lifetime = max_lifetime  # это тоже
-        self.age = 0.0  # Это не нужно, удалить.
+        self.damage: float = damage
+        self.speed: float = speed
+        self.owner_id: int = owner_id
+        self.max_lifetime: float = max_lifetime
+        self.age: float = 0.0
 
-    def update(
-        self, delta_time: float
-    ) -> None:  # Обновление позиции и возраста пули
+    def update(self, delta_time: float) -> None:
+        """Обновление позиции и возраста пули"""
         self.x += self.speed * math.cos(self.angle) * delta_time
         self.y += self.speed * math.sin(self.angle) * delta_time
         self.age += delta_time
 
-    def check_age(self) -> bool:  # проверка возраста пули
+    def check_age(self) -> bool:
         return self.age >= self.max_lifetime
 
-    # пока не используется
-    def if_out_of_map(
-        self, world_width: float, world_height: float
-    ) -> bool:  # проверка, что пуля не выходит за карту
-        left, right, top, bottom = self.get_bounds()
-        return (
-            right < 0 or left > world_width or bottom < 0 or top > world_height
-        )
 
-
-class Player(TextureObject):
+class Player(GameObject, TextureComponent, CircleCollisionComponent):
     speed: float = 300
+    text_label_offset: float = 65
 
-    def __init__(self, obj_id: int, x: float, y: float) -> None:
-        texture_path = random.choice(["Adaptant_V1.png", "Akiperic_V1.png", "Aslanec_V!.png", "BrokenCode_V1.png", "Fideranec_V1.png", "Frik_V1.png", "Patchist_V!.png", "SLOR_V1.png"])
+    def __init__(
+        self, obj_id: int, text_label_id: int, x: float, y: float
+    ) -> None:
+        texture_path = "Characters/" + random.choice(
+            [
+                "Adaptant_V1.png",
+                "Akiperic_V1.png",
+                "Aslanec_V!.png",
+                "BrokenCode_V1.png",
+                "Fideranec_V1.png",
+                "Frik_V1.png",
+                "Patchist_V!.png",
+                "SLOR_V1.png",
+            ]
+        )
         super().__init__(
-            obj_id,
-            x,
-            y,
-            0,
-            texture_path,
-            100,
-            100,
+            obj_id=obj_id,
+            x=x,
+            y=y,
+            angle=0,
+            texture_path=texture_path,
+            texture_width=100,
+            texture_height=100,
+            collision_radius=65,
         )  # временно захардкодено
+
+        self.health: float = 100
 
         self.vx: float = 0.0
         self.vy: float = 0.0
 
-    def normalize_velocity(self) -> None:
-        """Нормализует сохранённую скорость игрока"""
-        length = (self.vx**2 + self.vy**2) ** 0.5
-        if length != 0:
-            self.vx /= length
-            self.vy /= length
+        self.text_label_id: int = text_label_id
+
+    @property
+    def is_dead(self) -> bool:
+        return self.health <= 0
 
     def set_velocity(self, vx: float, vy: float) -> None:
-        self.vx = vx
-        self.vy = vy
-        self.normalize_velocity()
+        normalized_vx, normalized_vy = normalize_vector(vx, vy)
+        self.vx = normalized_vx
+        self.vy = normalized_vy
 
     def move(self, delta_time: float) -> None:
         """
@@ -143,24 +175,37 @@ class Player(TextureObject):
 
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
-    """WORLD_WIDTH =   # ширина игравого поля
-    WORLD_HEIGHT =   # высота игрового поля"""
+    MAP_RADIUS: float = 1000
+    MAP_RADIUS_SQUARED: float = MAP_RADIUS**2
 
     def __init__(
         self, websockets: dict[int, WebSocket], id_pool: IDPool
     ) -> None:
         self.websockets = websockets  # websockets от комнаты
+
+        # game objects
         self.players: dict[int, Player] = {}  # id вебсокета -> Player
         self.bullets: dict[int, Bullet] = {}  # id пули -> Bullet
+
         self.id_pool = id_pool
         # переменные для цикла
         self._lock = asyncio.Lock()
         self._loop_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
 
+    def _get_alive_players(self) -> list[Player]:
+        return [
+            player for player in self.players.values() if not player.is_dead
+        ]
+
     def add_player(self, player_id) -> None:
         if player_id not in self.players:
-            self.players[player_id] = Player(player_id, 0, 0)
+            self.players[player_id] = Player(
+                obj_id=player_id,
+                text_label_id=self.id_pool.get_new_id(),
+                x=0,
+                y=0,
+            )
 
     def remove_player(self, player_id) -> None:
         if player_id in self.players:
@@ -173,25 +218,21 @@ class Game:
             obj_id=bullet_id,
             x=player.x,
             y=player.y,
-            width=75,
+            width=45,
             height=45,
             angle=player.get_front_angle(),
-            speed=300.0,
+            speed=500.0,
             owner_id=player_id,
             max_lifetime=3.0,
+            damage=5,
+            collision_radius=5,
         )
         self.bullets[bullet_id] = bullet
 
-    def remove_bullets(
-        self, delta_time: float
-    ) -> None:  # удаление пули из списка
-        delete_bullets = []
-        for bullet_id, bullet in self.bullets.items():
-            bullet.update(delta_time)
-            if bullet.check_age():  # позже добавить bullet.if_out_of_map(self.WORLD_WIDTH, self.WORLD_HEIGHT)
-                delete_bullets.append(bullet_id)
-        for del_bullet in delete_bullets:
-            del self.bullets[del_bullet]
+    def _remove_timed_out_bullets(self) -> None:  # удаление пули из списка
+        for bullet in list(self.bullets.values()):
+            if bullet.check_age():
+                del self.bullets[bullet.id]
 
     def start_loop(self) -> None:
         if self._loop_task is None or self._loop_task.done():
@@ -206,12 +247,100 @@ class Game:
                 await self._loop_task
 
     def _tick(self, delta_time: float) -> None:
-        for player in self.players.values():
+        # игроки
+        for player in self._get_alive_players():
             player.move(delta_time)
-        self.remove_bullets(delta_time)
+        # жизненный цикл пуль
+        for bullet in self.bullets.values():
+            bullet.update(delta_time)
+        self._remove_timed_out_bullets()
+        # коллизии
+        self._resolve_collisions()
 
-    def _get_texture_objects(self) -> list[TextureObject]:
-        return list((self.players | self.bullets).values())
+    def _resolve_bullet_player_collision(
+        self, bullet: Bullet, player: Player
+    ) -> None:
+        player.health -= bullet.damage
+        del self.bullets[bullet.id]
+
+    def _resolve_player_map_collision(
+        self, player: Player, center_distance: float
+    ) -> None:
+        direction_x, direction_y = normalize_vector(-player.x, -player.y)
+        # когда эта функция вызывается подразумевается, что center_distance > self.MAP_RADIUS
+        border_distance = center_distance - self.MAP_RADIUS
+        shift_x = direction_x * border_distance
+        shift_y = direction_y * border_distance
+        player.shift(shift_x, shift_y)
+
+    def _resolve_collisions(self) -> None:
+        # пули-игроки
+        for bullet in list(self.bullets.values()):
+            for player in self._get_alive_players():
+                if bullet.owner_id == player.id:
+                    continue
+                if are_colliding(bullet, player):  # type: ignore
+                    self._resolve_bullet_player_collision(bullet, player)
+        # пули-карта
+        for bullet in list(self.bullets.values()):
+            if bullet.x**2 + bullet.y**2 < self.MAP_RADIUS_SQUARED:
+                continue
+            del self.bullets[bullet.id]
+        # игроки-карта
+        for player in self._get_alive_players():
+            center_distance = math.dist((player.x, player.y), (0, 0))
+            if center_distance < self.MAP_RADIUS:
+                continue
+            self._resolve_player_map_collision(player, center_distance)
+
+    def _get_texture_objects(self) -> list["TextureObject"]:
+        return self._get_alive_players() + list(self.bullets.values())  # type: ignore
+
+    def _get_texture_objects_to_show(
+        self, camera_x: float, camera_y: float
+    ) -> list:
+        texture_objects_to_show = []
+
+        for texture_object in self._get_texture_objects():
+            relative_x = texture_object.x - camera_x
+            relative_y = texture_object.y - camera_y
+
+            if not is_visible(relative_x, relative_y):
+                continue
+
+            texture_objects_to_show.append(
+                [
+                    texture_object.id,
+                    texture_object.texture_path,
+                    relative_x,
+                    relative_y,
+                    texture_object.texture_width,
+                    texture_object.texture_height,
+                    texture_object.angle,
+                ]
+            )
+        return texture_objects_to_show
+
+    def _get_text_objects_to_show(
+        self, camera_x: float, camera_y: float
+    ) -> list:
+        text_objects_to_show = []
+        for player in self._get_alive_players():
+            relative_x = player.x - camera_x
+            relative_y = player.y - camera_y
+
+            if not is_visible(relative_x, relative_y):
+                continue
+
+            text_objects_to_show.append(
+                [
+                    player.text_label_id,
+                    str(player.health),
+                    relative_x,
+                    relative_y + player.text_label_offset,
+                ]
+            )
+        return text_objects_to_show
 
     def _get_client_info(self, player_id: int) -> dict:
         """Возвращает всю визуальную информацию для данного игрока
@@ -223,29 +352,11 @@ class Game:
             dict: json с визуальными данными
         """
         player = self.players[player_id]
-        # центр камеры - позиция игрока, для которого предназначены данные
-        camera_x = player.x
-        camera_y = player.y
-
-        texture_objects_to_show = []
-
-        for texture_object in self._get_texture_objects():
-            # вычисление положение объекта, относительно текущего игрока
-            relative_x = texture_object.x - camera_x
-            relative_y = texture_object.y - camera_y
-            texture_objects_to_show.append(
-                [
-                    texture_object.id,
-                    texture_object.texture_path,
-                    relative_x,  # относительная координата по x
-                    relative_y,  # относительная координата по y
-                    texture_object.width,
-                    texture_object.height,
-                    texture_object.angle,
-                ]
-            )
-
-        return {"texture": texture_objects_to_show}
+        return {
+            "texture": self._get_texture_objects_to_show(player.x, player.y),
+            "text": self._get_text_objects_to_show(player.x, player.y),
+            "map": [self.MAP_RADIUS, -player.x, -player.y],
+        }
 
     async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
@@ -267,11 +378,15 @@ class Game:
             client_input (str): Ввод клиента
             player_id (int): ID вебсокета клиента
         """
+        player = self.players[player_id]
+
+        # in-game actions
+        if player.is_dead:
+            return
         if "movement" in client_input:
-            self.players[player_id].set_velocity(*client_input["movement"])
+            player.set_velocity(*client_input["movement"])
         if "angle" in client_input:
-            print(client_input)
-            self.players[player_id].set_angle(client_input["angle"])
+            player.set_angle(client_input["angle"])
         if "shoot" in client_input:
             self.add_bullet(player_id)
 
@@ -309,45 +424,10 @@ class Game:
             )
 
 
-class CollisionManager:
-    def __init__(self) -> None:
+if TYPE_CHECKING:
+
+    class TextureObject(GameObject, TextureComponent):
         pass
 
-    def rect_collision(self, obj1: GameObject, obj2: GameObject) -> bool:
-        l1, r1, t1, b1 = obj1.get_bounds()
-        l2, r2, t2, b2 = obj2.get_bounds()
-        return not (r1 <= l2 or l1 >= r2 or b1 <= t2 or t1 >= b2)
-
-    def resolve_collision(self, obj1: GameObject, obj2: GameObject) -> None:
-        l1, r1, t1, b1 = obj1.get_bounds()
-        l2, r2, t2, b2 = obj2.get_bounds()
-        # вычисляем пересечение
-        overlap_left = r1 - l2
-        overlap_right = l1 - r2
-        overlap_top = b1 - t2
-        overlap_bottom = b2 - t1
-
-        min_overlap = min(
-            overlap_left, overlap_right, overlap_top, overlap_bottom
-        )
-
-        # Смещение по x
-        if min_overlap == (overlap_right, overlap_left):
-            if overlap_left < overlap_right:
-                dx = -overlap_left
-            else:
-                dx = overlap_right
-            dy = 0
-        # Смещение по y
-        else:
-            if overlap_top < overlap_bottom:
-                dy = -overlap_top
-            else:
-                dy = overlap_bottom
-            dx = 0
-
-        # Смещение двух объектов (для игроков, для неподвижных препятствий второй объект сдвигаться не должен)
-        obj1.x += dx / 2
-        obj2.x += dx / 2
-        obj1.y -= dy / 2
-        obj2.y -= dy / 2
+    class CircleCollisionObject(GameObject, CircleCollisionComponent):
+        pass

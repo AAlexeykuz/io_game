@@ -128,11 +128,14 @@ class StateInterpolator {
         this.states = []; // { timestamp, texture }
     }
 
-    addState(textureData) {
+    addState(textureData, textData, mapData) {
         this.states.push({
             timestamp: Date.now(),
-            texture: textureData,
+            texture: textureData || [],
+            text: textData || [],
+            map: mapData ? [...mapData] : null,
         });
+
         if (this.states.length > GameConfig.MAX_STATE_BUFFER_SIZE) {
             this.states.shift();
         }
@@ -177,6 +180,9 @@ class GameRenderer {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext("2d");
         this.textureManager = textureManager;
+        this.mapRadius = null;
+        this.mapCenterX = null;
+        this.mapCenterY = null;
         this.setupCanvasResize();
     }
 
@@ -189,8 +195,39 @@ class GameRenderer {
         window.addEventListener("resize", resize);
     }
 
+    setMapInfo(mapRadius, mapCenterX, mapCenterY) {
+        this.mapRadius = mapRadius;
+        this.mapCenterX = mapCenterX;
+        this.mapCenterY = mapCenterY;
+    }
+
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // if (
+        //     this.mapRadius === null ||
+        //     this.mapCenterX === null ||
+        //     this.mapCenterY === null
+        // )
+        //     return;
+
+        // const offsetX = this.canvas.width / 2;
+        // const offsetY = this.canvas.height / 2;
+
+        // console.log(this.mapRadius, this.mapCenterX, this.mapCenterY);
+        // this.ctx.save();
+        // this.ctx.beginPath();
+        // // Рисуем круг с центром в (offsetX, offsetY)
+        // this.ctx.arc(
+        //     this.mapCenterX + offsetX,
+        //     this.mapCenterY + offsetY,
+        //     this.mapRadius,
+        //     0,
+        //     Math.PI * 2,
+        // );
+        // this.ctx.fillStyle = "#ffffff"; // Белый цвет внутренней зоны
+        // this.ctx.fill();
+        // this.ctx.restore();
     }
 
     drawTexture(textureName, x, y, width, height, angle) {
@@ -204,6 +241,42 @@ class GameRenderer {
         this.ctx.restore();
     }
 
+    drawMap(radius, centerX, centerY) {
+        if (radius === null || centerX === null || centerY === null) return;
+
+        const offsetX = this.canvas.width / 2;
+        const offsetY = this.canvas.height / 2;
+
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(
+            centerX + offsetX,
+            centerY + offsetY,
+            radius,
+            0,
+            Math.PI * 2,
+        );
+        this.ctx.fillStyle = "#ffffff"; // Цвет игровой зона
+        this.ctx.fill();
+        this.ctx.restore();
+    }
+
+    drawText(text, x, y) {
+        this.ctx.save();
+        this.ctx.font = "16px Arial";
+        this.ctx.fillStyle = "#ffffff";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+
+        // обводка текста
+        this.ctx.strokeStyle = "#000000";
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeText(text, x, y);
+
+        this.ctx.fillText(text, x, y);
+        this.ctx.restore();
+    }
+
     /**
      * Рисует интерполированное состояние
      */
@@ -211,7 +284,21 @@ class GameRenderer {
         const offsetX = this.canvas.width / 2;
         const offsetY = this.canvas.height / 2;
 
-        // Создаём Map для быстрого доступа к конечным объектам по id
+        // КАРТА
+        if (stateA.map && stateB.map) {
+            const [r1, x1, y1] = stateA.map;
+            const [r2, x2, y2] = stateB.map;
+
+            const radius = MathUtils.lerp(r1, r2, t);
+            const centerX = MathUtils.lerp(x1, x2, t);
+            const centerY = MathUtils.lerp(y1, y2, t);
+
+            this.drawMap(radius, centerX, centerY);
+        } else if (stateA.map) {
+            this.drawMap(stateA.map[0], stateA.map[1], stateA.map[2]);
+        }
+
+        // ТЕКСТУРЫ
         const endMap = new Map(stateB.texture.map((item) => [item[0], item]));
 
         for (const startItem of stateA.texture) {
@@ -226,6 +313,23 @@ class GameRenderer {
             const angle = MathUtils.lerpAngle(angle1, angle2, t);
 
             this.drawTexture(textureName, x, y, width, height, angle);
+        }
+
+        // ТЕКСТ
+        const endTextMap = new Map(stateB.text.map((item) => [item[0], item]));
+
+        for (const startItem of stateA.text) {
+            const [id, text, x1, y1] = startItem;
+            const endItem = endTextMap.get(id);
+            if (!endItem) continue;
+
+            const [, , x2, y2] = endItem;
+
+            // Интерполируем позицию текста для плавного перемещения
+            const x = MathUtils.lerp(x1, x2, t) + offsetX;
+            const y = MathUtils.lerp(y1, y2, t) + offsetY;
+
+            this.drawText(text, x, y);
         }
     }
 }
@@ -271,8 +375,8 @@ class GameClient {
             alert(data.alert);
         }
 
-        if (data.texture) {
-            this.interpolator.addState(data.texture);
+        if (data.texture || data.text || data.map) {
+            this.interpolator.addState(data.texture, data.text, data.map);
         }
     }
 
