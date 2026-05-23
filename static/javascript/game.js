@@ -300,16 +300,30 @@ class GameClient {
     constructor(roomId) {
         this.roomId = roomId;
         this.socket = null;
+        this.username = null;
         this.textureManager = new TextureManager();
         this.renderer = new GameRenderer("gameCanvas", this.textureManager);
         this.interpolator = new StateInterpolator();
         this.inputController = new InputController((data) =>
             this.sendData(data),
         );
-        this.username = prompt("Введите ник игрока");
+        this.setupUsername();
         this.setupUI();
         this.startGameLoop();
         this.setupWebSocket();
+    }
+
+    setupUsername() {
+        let name = prompt("Введите ник игрока");
+        name = name.trim();
+        if (!name || name === "") {
+            const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-значное число
+            this.username = `Player ${randomNumber}`;
+        } else if (name.length > 20) {
+            this.username = name.slice(0, 20);
+        } else {
+            this.username = name;
+        }
     }
 
     setupWebSocket() {
