@@ -391,7 +391,7 @@ class GameClient {
     }
 
     hideRestartButton() {
-        this.restartButton.remove();
+        if (this.restartButton !== null) this.restartButton.remove();
     }
 
     sendData(data) {
