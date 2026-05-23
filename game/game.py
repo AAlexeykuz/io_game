@@ -17,6 +17,14 @@ def is_visible(relative_x: float, relative_y: float) -> bool:
     return relative_x**2 + relative_y**2 < MAX_VISIBILITY_RADIUS_SQUARED
 
 
+def normalize_vector(x: float, y: float) -> tuple[float, float]:
+    length = (x**2 + y**2) ** 0.5
+    if length != 0:
+        x /= length
+        y /= length
+    return x, y
+
+
 class GameObject:
     def __init__(
         self, obj_id: int, x: float, y: float, angle: float, **kwargs
@@ -29,6 +37,10 @@ class GameObject:
 
     def set_angle(self, angle: float) -> None:
         self.angle = angle
+
+    def shift(self, shift_x: float, shift_y: float) -> None:
+        self.x += shift_x
+        self.y += shift_y
 
     def get_front_angle(self) -> float:
         return (self.angle - math.pi / 2) % (2 * math.pi)
@@ -147,17 +159,10 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
     def is_dead(self) -> bool:
         return self.health <= 0
 
-    def normalize_velocity(self) -> None:
-        """Нормализует сохранённую скорость игрока"""
-        length = (self.vx**2 + self.vy**2) ** 0.5
-        if length != 0:
-            self.vx /= length
-            self.vy /= length
-
     def set_velocity(self, vx: float, vy: float) -> None:
-        self.vx = vx
-        self.vy = vy
-        self.normalize_velocity()
+        normalized_vx, normalized_vy = normalize_vector(vx, vy)
+        self.vx = normalized_vx
+        self.vy = normalized_vy
 
     def move(self, delta_time: float) -> None:
         """
@@ -169,7 +174,8 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
 
 class Game:
     TICK_RATE: float = 30  # сколько раз в секунду обновление состояния
-    MAP_RADIUS: float = 2000
+    MAP_RADIUS: float = 1000
+    MAP_RADIUS_SQUARED: float = MAP_RADIUS**2
 
     def __init__(
         self, websockets: dict[int, WebSocket], id_pool: IDPool
@@ -256,6 +262,17 @@ class Game:
         player.health -= bullet.damage
         del self.bullets[bullet.id]
 
+    def _resolve_player_map_collision(
+        self, player: Player, center_distance: float
+    ) -> None:
+        direction_x, direction_y = normalize_vector(-player.x, -player.y)
+        # когда эта функция вызывается подразумевается, что center_distance > self.MAP_RADIUS
+        border_distance = center_distance - self.MAP_RADIUS
+        shift_x = direction_x * border_distance
+        shift_y = direction_y * border_distance
+        print("SHIFT", shift_x, shift_y)
+        player.shift(shift_x, shift_y)
+
     def _resolve_collisions(self) -> None:
         # пули-игроки
         for bullet in list(self.bullets.values()):
@@ -264,6 +281,17 @@ class Game:
                     continue
                 if are_colliding(bullet, player):  # type: ignore
                     self._resolve_bullet_player_collision(bullet, player)
+        # пули-карта
+        for bullet in list(self.bullets.values()):
+            if bullet.x**2 + bullet.y**2 < self.MAP_RADIUS_SQUARED:
+                continue
+            del self.bullets[bullet.id]
+        # игроки-карта
+        for player in self._get_alive_players():
+            center_distance = math.dist((player.x, player.y), (0, 0))
+            if center_distance < self.MAP_RADIUS:
+                continue
+            self._resolve_player_map_collision(player, center_distance)
 
     def _get_texture_objects(self) -> list["TextureObject"]:
         return self._get_alive_players() + list(self.bullets.values())  # type: ignore
