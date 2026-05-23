@@ -307,6 +307,7 @@ class GameClient {
         this.inputController = new InputController((data) =>
             this.sendData(data),
         );
+        this.restartButton = null;
         this.setupUsername();
         this.setupUI();
         this.startGameLoop();
@@ -368,9 +369,8 @@ class GameClient {
         if (data.texture || data.text || data.map)
             this.interpolator.addState(data.texture, data.text, data.map);
 
-        if (data.dead) {
-            this.showRestartButton();
-        }
+        if (data.dead) this.showRestartButton();
+        else this.hideRestartButton();
     }
 
     showRestartButton() {
@@ -399,11 +399,15 @@ class GameClient {
         });
 
         button.onclick = () => {
-            button.remove();
             this.sendData({ restart: true });
         };
 
         document.body.appendChild(button);
+        this.restartButton = button;
+    }
+
+    hideRestartButton() {
+        if (this.restartButton !== null) this.restartButton.remove();
     }
 
     sendData(data) {

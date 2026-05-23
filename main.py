@@ -47,6 +47,10 @@ class Room:
         return {
             "id": self.id,
             "player_count": len(self.players),
+            "players": [
+                (player_id, self.player_nicknames[player_id])
+                for player_id in self.players
+            ],
             "status": self.get_status(),
         }
 
@@ -73,7 +77,10 @@ class Room:
                 self.start_game()
             else:
                 await self.players[player_id].send_json(
-                    {"alert": "Только хост может начать игру."}
+                    {
+                        "is_game_started": True,
+                        "alert": "Только хост может начать игру.",
+                    }
                 )
 
     def start_game(self) -> None:
