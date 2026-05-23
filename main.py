@@ -47,6 +47,10 @@ class Room:
         return {
             "id": self.id,
             "player_count": len(self.players),
+            "players": [
+                (player_id, self.player_nicknames[player_id])
+                for player_id in self.players
+            ],
             "status": self.get_status(),
         }
 
