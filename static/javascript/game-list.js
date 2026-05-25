@@ -1,6 +1,6 @@
 // ---------- Конфигурация ----------
-const ROOMS_API_URL = '/rooms';
-const UPDATE_INTERVAL_MS = 3000;
+const ROOMS_API_URL = "/rooms";
+const USERNAME_LIST_UPDATE_INTERVAL_MS = 3000;
 
 // ---------- Модель комнаты ----------
 class Room {
@@ -25,28 +25,28 @@ class RoomListView {
      * Создаёт DOM-элемент для одной комнаты
      */
     createRoomElement(room) {
-        const div = document.createElement('div');
-        div.className = 'roomList';
+        const div = document.createElement("div");
+        div.className = "roomList";
 
-        const li = document.createElement('li');
-        const span = document.createElement('span');
+        const li = document.createElement("li");
+        const span = document.createElement("span");
         span.id = room.id;
         span.innerHTML = `Код: ${room.id}<br>Количество игроков: ${room.playerCount}<br>Статус: ${room.status}`;
         li.appendChild(span);
         div.appendChild(li);
 
-        const button = document.createElement('button');
-        button.textContent = 'Присоединиться';
+        const button = document.createElement("button");
+        button.textContent = "Присоединиться";
 
         // потом сделаем так
-        button.classList.add('enter_true');
+        button.classList.add("enter_true");
         // if (room.status === 'Ожидание') {
         //     button.classList.add('enter_true');
         // } else {
         //     button.classList.add('enter_false');
         // }
 
-        button.addEventListener('click', () => {
+        button.addEventListener("click", () => {
             window.location.href = `../html/game.html?id=${room.id}`;
         });
 
@@ -58,10 +58,14 @@ class RoomListView {
      * Очищает контейнер и отрисовывает список комнат
      */
     render(rooms) {
-        this.container.innerHTML = '';
+        this.container.innerHTML = "";
         const fragment = document.createDocumentFragment();
-        rooms.forEach(roomData => {
-            const room = new Room(roomData.id, roomData.player_count, roomData.status);
+        rooms.forEach((roomData) => {
+            const room = new Room(
+                roomData.id,
+                roomData.player_count,
+                roomData.status,
+            );
             fragment.appendChild(this.createRoomElement(room));
         });
         this.container.appendChild(fragment);
@@ -82,11 +86,14 @@ class RoomListView {
             const data = await response.json();
             this.render(data.rooms);
         } catch (error) {
-            console.error('Ошибка при получении комнат:', error);
+            console.error("Ошибка при получении комнат:", error);
         } finally {
             this.isUpdating = false;
             // Планируем следующее обновление
-            setTimeout(() => this.fetchAndRender(), UPDATE_INTERVAL_MS);
+            setTimeout(
+                () => this.fetchAndRender(),
+                USERNAME_LIST_UPDATE_INTERVAL_MS,
+            );
         }
     }
 
@@ -99,7 +106,7 @@ class RoomListView {
 }
 
 // ---------- Точка входа ----------
-document.addEventListener('DOMContentLoaded', () => {
-    const view = new RoomListView('list');
+document.addEventListener("DOMContentLoaded", () => {
+    const view = new RoomListView("list");
     view.start();
 });

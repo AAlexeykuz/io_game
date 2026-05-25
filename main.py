@@ -48,8 +48,8 @@ class Room:
             "id": self.id,
             "player_count": len(self.players),
             "players": [
-                (player_id, self.player_nicknames[player_id])
-                for player_id in self.players
+                self.player_nicknames[player_id]
+                for player_id in sorted(self.players.keys())
             ],
             "status": self.get_status(),
         }
@@ -147,6 +147,14 @@ async def root():
 @app.get("/rooms", response_model=RoomListResponse)
 async def get_rooms():
     return room_manager.get_rooms_info()
+
+
+@app.get("/rooms/{room_id}")
+async def get_room_info(room_id: str) -> dict:
+    room = room_manager.get_room(room_id)
+    if room is None:
+        raise HTTPException(404)
+    return room.get_info()
 
 
 @app.get("/favicon.ico", include_in_schema=False)

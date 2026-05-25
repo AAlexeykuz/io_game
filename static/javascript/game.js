@@ -14,6 +14,7 @@ const GameConfig = {
         ArrowRight: "right",
     },
 };
+const USERNAME_LIST_UPDATE_INTERVAL_MS = 1000;
 
 // ---------- Утилиты ----------
 const MathUtils = {
@@ -312,34 +313,52 @@ class GameClient {
         this.setupUI();
         this.startGameLoop();
         this.setupWebSocket();
-        this.showUserlist();
+        this.updateUserlistLoop();
     }
 
     setupUsername() {
         let name = prompt("Введите ник игрока");
-        this.userlist = [];
         name = name.trim();
         if (!name || name === "") {
             const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-значное число
             this.username = `Player ${randomNumber}`;
-            userlist.push(this.username);
         } else if (name.length > 20) {
             this.username = name.slice(0, 20);
-            userlist.push(this.username);
         } else {
             this.username = name;
-            this.userlist.push(this.username);
         }
     }
 
-    showUserlist() {
+    async updateUserlistLoop() {
         this.list = document.getElementById("userlist");
 
-        for (let i = 0; i < this.userlist.length; i++) {
-            this.li = document.createElement("li");
-            this.li.classList.add('section-userlist')
-            this.li.textContent = this.userlist[i];
-            this.list.appendChild(this.li);
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const request = `/rooms/${urlParams.get("id")}`;
+            console.log(request);
+            const response = await fetch(request);
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            this.list.innerHTML = "";
+            for (let i = 0; i < data.players.length; i++) {
+                let li = document.createElement("li");
+                li.classList.add("section-userlist");
+                li.textContent = data.players[i];
+                this.list.appendChild(li);
+            }
+        } catch (error) {
+            console.error("Ошибка при получении списка игроков:", error);
+        } finally {
+            this.isUpdatingUserlist = false;
+            // Планируем следующее обновление
+            setTimeout(
+                () => this.updateUserlistLoop(),
+                USERNAME_LIST_UPDATE_INTERVAL_MS,
+            );
         }
     }
 
@@ -477,4 +496,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.gameClient = new GameClient(roomId);
 });
-
