@@ -264,7 +264,7 @@ li.section-userlist:hover {
 }
 
 .hide {
-  display: none;
+  display: none !important;
 }
 
 .show {

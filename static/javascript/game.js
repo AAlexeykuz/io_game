@@ -309,6 +309,8 @@ class GameClient {
             this.sendData(data),
         );
         this.restartButton = null;
+        this.menuElement = document.querySelector(".game-data");
+
         this.setupUsername();
         this.setupUI();
         this.startGameLoop();
@@ -384,6 +386,18 @@ class GameClient {
         const data = JSON.parse(event.data);
 
         if (data.alert) alert(data.alert);
+
+        if (data.game_start !== undefined) {
+            if (data.game_start) {
+                if (this.menuElement) this.menuElement.classList.add("hide");
+                if (this.renderer.canvas)
+                    this.renderer.canvas.classList.remove("hide");
+            } else {
+                if (this.menuElement) this.menuElement.classList.remove("hide");
+                if (this.renderer.canvas)
+                    this.renderer.canvas.classList.add("hide");
+            }
+        }
 
         if (data.texture || data.text || data.map)
             this.interpolator.addState(data.texture, data.text, data.map);

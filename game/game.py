@@ -10,7 +10,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from game.id_pool import IDPool
 
-MAX_VISIBILITY_RADIUS: float = 1000
+MAX_VISIBILITY_RADIUS: float = 1100
 MAX_VISIBILITY_RADIUS_SQUARED: float = MAX_VISIBILITY_RADIUS**2
 
 
@@ -264,6 +264,7 @@ class Game:
                 await self._loop_task
 
     def _tick(self, delta_time: float) -> None:
+        print("tick")
         # игроки
         for player in self._get_alive_players():
             player.move(delta_time)

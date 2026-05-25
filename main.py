@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import random
 from pathlib import Path
@@ -74,19 +75,20 @@ class Room:
             return
         if "start" in player_input:
             if player_id == list(self.players.keys())[0]:
-                self.start_game()
+                await self.start_game()
             else:
                 await self.players[player_id].send_json(
                     {
-                        "is_game_started": True,
                         "alert": "Только хост может начать игру.",
                     }
                 )
 
-    def start_game(self) -> None:
+    async def start_game(self) -> None:
         self._game = Game(self.players, self._id_pool)
         for player_id in self.players:
             self._game.add_player(player_id, self.player_nicknames[player_id])
+            with contextlib.suppress(WebSocketDisconnect, KeyError):
+                await self.players[player_id].send_json({"game_start": True})
         self._game.start_loop()
 
 
