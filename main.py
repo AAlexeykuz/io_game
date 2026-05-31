@@ -56,6 +56,11 @@ class Room:
         }
 
     async def connect(self, websocket: WebSocket, nickname: str) -> int:
+        if self.get_status() is RoomStatus.PLAYING:
+            raise HTTPException(
+                status_code=403,
+                detail="Нельзя присоединиться к этой команте в данный момент",
+            )
         await websocket.accept()
         player_id = self._id_pool.get_new_id()
         self.players[player_id] = websocket

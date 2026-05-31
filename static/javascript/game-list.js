@@ -38,13 +38,13 @@ class RoomListView {
         const button = document.createElement("button");
         button.textContent = "Присоединиться";
 
-        // потом сделаем так
-        button.classList.add("enter_true");
-        // if (room.status === 'Ожидание') {
-        //     button.classList.add('enter_true');
-        // } else {
-        //     button.classList.add('enter_false');
-        // }
+        if (room.status === "Ожидание") {
+            button.classList.add("enter_true");
+            button.disabled = false;
+        } else {
+            button.classList.add("enter_false");
+            button.disabled = true;
+        }
 
         button.addEventListener("click", () => {
             window.location.href = `../html/game.html?id=${room.id}`;
