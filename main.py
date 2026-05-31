@@ -44,16 +44,18 @@ class Room:
             return RoomStatus.PLAYING
         return RoomStatus.LOBBY
 
-    def get_info(self) -> dict:
-        return {
+    def get_info(self, *params) -> dict:
+        info = {
             "id": self.id,
             "player_count": len(self.players),
             "players": [
                 self.player_nicknames[player_id]
                 for player_id in sorted(self.players.keys())
             ],
+            "leaderboard": {"user": 1000},
             "status": self.get_status(),
         }
+        return {key: value for key, value in info.items() if key in params}
 
     async def connect(self, websocket: WebSocket, nickname: str) -> int:
         if self.get_status() is RoomStatus.PLAYING:
@@ -129,7 +131,12 @@ class RoomManager:
             del self._rooms[room_id]
 
     def get_rooms_info(self) -> dict:
-        return {"rooms": [room.get_info() for room in self._rooms.values()]}
+        return {
+            "rooms": [
+                room.get_info("id", "player_count", "status")
+                for room in self._rooms.values()
+            ]
+        }
 
     def get_room(self, room_id: str) -> Room | None:
         if room_id not in self._rooms:
@@ -161,7 +168,9 @@ async def get_room_info(room_id: str) -> dict:
     room = room_manager.get_room(room_id)
     if room is None:
         raise HTTPException(404)
-    return room.get_info()
+    pon = room.get_info("players", "leaderboard")
+    print(pon)
+    return pon
 
 
 @app.get("/favicon.ico", include_in_schema=False)
