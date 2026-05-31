@@ -309,13 +309,17 @@ class GameClient {
             this.sendData(data),
         );
         this.restartButton = null;
+        this.leaderboard = {};
+        this.userlist = document.getElementById("userlist");
         this.menuElement = document.querySelector(".game-data");
+        this.winnerScreen = null;
 
+        this.setupLeaderboardDOM();
         this.setupUsername();
         this.setupUI();
         this.startGameLoop();
         this.setupWebSocket();
-        this.updateUserlistLoop();
+        this.updateUserlistAndLeaderboard();
     }
 
     setupUsername() {
@@ -331,13 +335,70 @@ class GameClient {
         }
     }
 
-    async updateUserlistLoop() {
+    setupLeaderboardDOM() {
+        this.leaderboardContainer = document.createElement("div");
+        this.leaderboardContainer.id = "game-leaderboard";
+
+        Object.assign(this.leaderboardContainer.style, {
+            position: "fixed",
+            top: "20px",
+            right: "20px",
+            backgroundColor: "rgba(50, 50, 50, 0.7)",
+            color: "#ffffff",
+            padding: "15px",
+            borderRadius: "6px",
+            fontFamily: "Arial, sans-serif",
+            minWidth: "200px",
+            boxShadow: "0 4px 10px rgba(0,0,0,0.5)",
+            zIndex: "1000",
+            display: "none",
+        });
+
+        document.body.appendChild(this.leaderboardContainer);
+    }
+
+    renderLeaderboard(leaderboardData) {
+        if (
+            !leaderboardData ||
+            typeof leaderboardData !== "object" ||
+            Array.isArray(leaderboardData)
+        )
+            return;
+
+        this.leaderboardContainer.innerHTML = `
+        <h3 style="margin: 0 0 5px 0; text-align: center; font-size: 16px;">
+        </h3>
+    `;
+
+        const ul = document.createElement("ul");
+        Object.assign(ul.style, { listStyle: "none", margin: 0, padding: 0 });
+
+        const sortedLeaderboard = Object.entries(leaderboardData).sort(
+            (a, b) => b[1] - a[1],
+        );
+
+        sortedLeaderboard.forEach(([name, score], index) => {
+            const li = document.createElement("li");
+            Object.assign(li.style, {
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "4px 0",
+                fontSize: "14px",
+            });
+
+            li.innerHTML = `<span style="font-weight: bold;">${index + 1}. ${name}</span><span>${score}</span>`;
+            ul.appendChild(li);
+        });
+
+        this.leaderboardContainer.appendChild(ul);
+    }
+
+    async updateUserlistAndLeaderboard() {
         this.list = document.getElementById("userlist");
 
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const request = `/rooms/${urlParams.get("id")}`;
-            console.log(request);
             const response = await fetch(request);
             if (!response.ok) {
                 throw new Error(`HTTP error ${response.status}`);
@@ -352,13 +413,19 @@ class GameClient {
                 li.textContent = data.players[i];
                 this.list.appendChild(li);
             }
+
+            if (data.leaderboard) {
+                this.renderLeaderboard(data.leaderboard);
+            }
         } catch (error) {
-            console.error("Ошибка при получении списка игроков:", error);
+            console.error(
+                "Ошибка при получении списка игроков и лидерборда:",
+                error,
+            );
         } finally {
             this.isUpdatingUserlist = false;
-            // Планируем следующее обновление
             setTimeout(
-                () => this.updateUserlistLoop(),
+                () => this.updateUserlistAndLeaderboard(),
                 USERNAME_LIST_UPDATE_INTERVAL_MS,
             );
         }
@@ -388,15 +455,27 @@ class GameClient {
         if (data.alert) alert(data.alert);
 
         if (data.game_start !== undefined) {
+            this.hideWinnerScreen();
             if (data.game_start) {
                 if (this.menuElement) this.menuElement.classList.add("hide");
                 if (this.renderer.canvas)
                     this.renderer.canvas.classList.remove("hide");
+                if (this.leaderboardContainer)
+                    this.leaderboardContainer.style.display = "block";
             } else {
                 if (this.menuElement) this.menuElement.classList.remove("hide");
                 if (this.renderer.canvas)
                     this.renderer.canvas.classList.add("hide");
+                if (this.leaderboardContainer)
+                    this.leaderboardContainer.style.display = "none";
             }
+        }
+
+        console.log(data.winner);
+        if (data.winner !== undefined) {
+            this.showWinnerScreen(data.winner);
+        } else {
+            this.hideWinnerScreen();
         }
 
         if (data.texture || data.text || data.map)
@@ -404,6 +483,69 @@ class GameClient {
 
         if (data.dead) this.showRestartButton();
         else this.hideRestartButton();
+    }
+
+    showWinnerScreen(winnerName) {
+        if (document.getElementById("winner-screen")) return;
+
+        const screen = document.createElement("div");
+        screen.id = "winner-screen";
+
+        Object.assign(screen.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: "2000",
+            color: "black",
+            fontFamily: "Arial, sans-serif",
+        });
+
+        // стиль
+        const title = document.createElement("h1");
+        title.innerText = `ПОБЕДИТЕЛЬ: ${winnerName.toUpperCase()}`;
+        title.style.fontSize = "48px";
+        title.style.marginBottom = "550px";
+        screen.appendChild(title);
+
+        const isHost = !!document.getElementById("start-button");
+
+        if (isHost) {
+            const menuBtn = document.createElement("button");
+            menuBtn.innerText = "Вернуться в меню (Хост)";
+            Object.assign(menuBtn.style, {
+                padding: "12px 28px",
+                fontSize: "18px",
+                cursor: "pointer",
+                backgroundColor: "#2ed573",
+                color: "black",
+                border: "none",
+                borderRadius: "5px",
+                boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                transition: "background 0.2s",
+            });
+
+            menuBtn.onclick = () => {
+                this.sendData({ back_to_menu: true });
+            };
+
+            screen.appendChild(menuBtn);
+        }
+
+        document.body.appendChild(screen);
+        this.winnerScreen = screen;
+    }
+
+    hideWinnerScreen() {
+        if (this.winnerScreen) {
+            this.winnerScreen.remove();
+            this.winnerScreen = null;
+        }
     }
 
     showRestartButton() {
