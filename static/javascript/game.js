@@ -312,6 +312,7 @@ class GameClient {
         this.leaderboard = {};
         this.userlist = document.getElementById("userlist");
         this.menuElement = document.querySelector(".game-data");
+        this.winnerScreen = null;
 
         this.setupLeaderboardDOM();
         this.setupUsername();
@@ -454,6 +455,7 @@ class GameClient {
         if (data.alert) alert(data.alert);
 
         if (data.game_start !== undefined) {
+            this.hideWinnerScreen();
             if (data.game_start) {
                 if (this.menuElement) this.menuElement.classList.add("hide");
                 if (this.renderer.canvas)
@@ -469,11 +471,81 @@ class GameClient {
             }
         }
 
+        console.log(data.winner);
+        if (data.winner !== undefined) {
+            this.showWinnerScreen(data.winner);
+        } else {
+            this.hideWinnerScreen();
+        }
+
         if (data.texture || data.text || data.map)
             this.interpolator.addState(data.texture, data.text, data.map);
 
         if (data.dead) this.showRestartButton();
         else this.hideRestartButton();
+    }
+
+    showWinnerScreen(winnerName) {
+        if (document.getElementById("winner-screen")) return;
+
+        const screen = document.createElement("div");
+        screen.id = "winner-screen";
+
+        Object.assign(screen.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: "2000",
+            color: "black",
+            fontFamily: "Arial, sans-serif",
+        });
+
+        // стиль
+        const title = document.createElement("h1");
+        title.innerText = `ПОБЕДИТЕЛЬ: ${winnerName.toUpperCase()}`;
+        title.style.fontSize = "48px";
+        title.style.marginBottom = "550px";
+        screen.appendChild(title);
+
+        const isHost = !!document.getElementById("start-button");
+
+        if (isHost) {
+            const menuBtn = document.createElement("button");
+            menuBtn.innerText = "Вернуться в меню (Хост)";
+            Object.assign(menuBtn.style, {
+                padding: "12px 28px",
+                fontSize: "18px",
+                cursor: "pointer",
+                backgroundColor: "#2ed573",
+                color: "black",
+                border: "none",
+                borderRadius: "5px",
+                boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+                transition: "background 0.2s",
+            });
+
+            menuBtn.onclick = () => {
+                this.sendData({ back_to_menu: true });
+            };
+
+            screen.appendChild(menuBtn);
+        }
+
+        document.body.appendChild(screen);
+        this.winnerScreen = screen;
+    }
+
+    hideWinnerScreen() {
+        if (this.winnerScreen) {
+            this.winnerScreen.remove();
+            this.winnerScreen = null;
+        }
     }
 
     showRestartButton() {

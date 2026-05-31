@@ -52,7 +52,7 @@ class Room:
                 self.player_nicknames[player_id]
                 for player_id in sorted(self.players.keys())
             ],
-            "leaderboard": {"user": 1000},
+            "leaderboard": self._game.get_leaderboard() if self._game else {},
             "status": self.get_status(),
         }
         return {key: value for key, value in info.items() if key in params}
@@ -76,13 +76,23 @@ class Room:
             self._game.remove_player(player_id)
         del self.players[player_id]
 
+    def _is_host(self, player_id: int) -> bool:
+        return player_id == list(self.players.keys())[0]
+
     async def handle_input(self, player_input: dict, player_id: int) -> None:
         if self._game:
+            if (
+                self._game.winner
+                and self._is_host(player_id)
+                and "back_to_menu" in player_input
+            ):
+                await self._end_game()
+                return
             self._game.handle_client_input(player_input, player_id)
             return
         if "start" in player_input:
-            if player_id == list(self.players.keys())[0]:
-                await self.start_game()
+            if self._is_host(player_id):
+                await self._start_game()
             else:
                 await self.players[player_id].send_json(
                     {
@@ -90,7 +100,16 @@ class Room:
                     }
                 )
 
-    async def start_game(self) -> None:
+    async def _end_game(self) -> None:
+        if self._game is not None:
+            await self._game.stop_loop()
+            del self._game
+            self._game = None
+        for player_id in self.players:
+            with contextlib.suppress(WebSocketDisconnect, KeyError):
+                await self.players[player_id].send_json({"game_start": False})
+
+    async def _start_game(self) -> None:
         self._game = Game(self.players, self._id_pool)
         for player_id in self.players:
             self._game.add_player(player_id, self.player_nicknames[player_id])
@@ -122,7 +141,6 @@ class RoomManager:
         """Создаёт комнату, возвращает id."""
         room_id = self._generate_room_id()
         self._rooms[room_id] = Room(room_id)
-        print("комнаты", self._rooms)
         return room_id
 
     def remove_room_if_empty(self, room_id: str) -> None:
@@ -168,9 +186,7 @@ async def get_room_info(room_id: str) -> dict:
     room = room_manager.get_room(room_id)
     if room is None:
         raise HTTPException(404)
-    pon = room.get_info("players", "leaderboard")
-    print(pon)
-    return pon
+    return room.get_info("players", "leaderboard")
 
 
 @app.get("/favicon.ico", include_in_schema=False)
