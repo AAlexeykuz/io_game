@@ -120,14 +120,16 @@ class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
 
 
 class Player(GameObject, TextureComponent, CircleCollisionComponent):
-    INITIAL_HEALTH: float = 100
+    initial_health: float = 100
     speed: float = 300
     nickname_offset: float = 65
+    health_label_offset: float = 90
 
     def __init__(
         self,
         obj_id: int,
         nickname_label_id: int,
+        health_label_id: int,
         x: float,
         y: float,
         nickname: str,
@@ -161,6 +163,7 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
         self.vy: float = 0.0
 
         self.nick_label_id: int = nickname_label_id
+        self.health_label_id: int = health_label_id
         self.nickname: str = nickname
 
         self.revive()
@@ -219,6 +222,7 @@ class Game:
             self.players[player_id] = Player(
                 obj_id=player_id,
                 nickname_label_id=self.id_pool.get_new_id(),
+                health_label_id=self.id_pool.get_new_id(),
                 x=0,
                 y=0,
                 nickname=nickname,
@@ -375,6 +379,14 @@ class Game:
                     player.nickname,
                     relative_x,
                     relative_y + player.nickname_offset,
+                ]
+            )
+            text_objects_to_show.append(
+                [
+                    player.health_label_id,
+                    str(player.health),
+                    relative_x,
+                    relative_y + player.health_label_offset,
                 ]
             )
         return text_objects_to_show
