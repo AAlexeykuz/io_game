@@ -14,6 +14,7 @@ const GameConfig = {
         ArrowRight: "right",
     },
 };
+const USERNAME_LIST_UPDATE_INTERVAL_MS = 1000;
 
 // ---------- Утилиты ----------
 const MathUtils = {
@@ -37,8 +38,6 @@ const MathUtils = {
 
 // ---------- Контроллер ввода ----------
 class InputController {
-    static musicStarted = false; // флаг для отслеживания музыки
-
     constructor(sendCallback) {
         this.sendData = sendCallback; // функция отправки данных на сервер
         this.movement = {
@@ -81,18 +80,7 @@ class InputController {
     }
 
     handleMouseClick(event) {
-        // Отправка выстрела
         this.sendData({ shoot: true });
-    
-        // Запускаем музыку при первом клике
-        if (!InputController.musicStarted) {
-            if (window.MusicManager) {
-                window.MusicManager.start();
-                InputController.musicStarted = true;
-            } else {
-                console.warn("MusicManager не найден. Проверьте подключение music.js");
-            }
-        }
     }
 
     updateDirection() {
@@ -125,7 +113,7 @@ class TextureManager {
 // ---------- Интерполятор состояний ----------
 class StateInterpolator {
     constructor() {
-        this.states = []; // { timestamp, texture }
+        this.states = [];
     }
 
     addState(textureData, textData, mapData) {
@@ -203,31 +191,6 @@ class GameRenderer {
 
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // if (
-        //     this.mapRadius === null ||
-        //     this.mapCenterX === null ||
-        //     this.mapCenterY === null
-        // )
-        //     return;
-
-        // const offsetX = this.canvas.width / 2;
-        // const offsetY = this.canvas.height / 2;
-
-        // console.log(this.mapRadius, this.mapCenterX, this.mapCenterY);
-        // this.ctx.save();
-        // this.ctx.beginPath();
-        // // Рисуем круг с центром в (offsetX, offsetY)
-        // this.ctx.arc(
-        //     this.mapCenterX + offsetX,
-        //     this.mapCenterY + offsetY,
-        //     this.mapRadius,
-        //     0,
-        //     Math.PI * 2,
-        // );
-        // this.ctx.fillStyle = "#ffffff"; // Белый цвет внутренней зоны
-        // this.ctx.fill();
-        // this.ctx.restore();
     }
 
     drawTexture(textureName, x, y, width, height, angle) {
@@ -325,7 +288,6 @@ class GameRenderer {
 
             const [, , x2, y2] = endItem;
 
-            // Интерполируем позицию текста для плавного перемещения
             const x = MathUtils.lerp(x1, x2, t) + offsetX;
             const y = MathUtils.lerp(y1, y2, t) + offsetY;
 
@@ -339,22 +301,74 @@ class GameClient {
     constructor(roomId) {
         this.roomId = roomId;
         this.socket = null;
+        this.username = null;
         this.textureManager = new TextureManager();
         this.renderer = new GameRenderer("gameCanvas", this.textureManager);
         this.interpolator = new StateInterpolator();
         this.inputController = new InputController((data) =>
             this.sendData(data),
         );
+        this.restartButton = null;
+        this.menuElement = document.querySelector(".game-data");
 
-        this.setupWebSocket();
+        this.setupUsername();
         this.setupUI();
         this.startGameLoop();
+        this.setupWebSocket();
+        this.updateUserlistLoop();
+    }
+
+    setupUsername() {
+        let name = prompt("Введите ник игрока");
+        name = name.trim();
+        if (!name || name === "") {
+            const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-значное число
+            this.username = `Player ${randomNumber}`;
+        } else if (name.length > 20) {
+            this.username = name.slice(0, 20);
+        } else {
+            this.username = name;
+        }
+    }
+
+    async updateUserlistLoop() {
+        this.list = document.getElementById("userlist");
+
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const request = `/rooms/${urlParams.get("id")}`;
+            console.log(request);
+            const response = await fetch(request);
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            this.list.innerHTML = "";
+            for (let i = 0; i < data.players.length; i++) {
+                let li = document.createElement("li");
+                li.classList.add("section-userlist");
+                li.textContent = data.players[i];
+                this.list.appendChild(li);
+            }
+        } catch (error) {
+            console.error("Ошибка при получении списка игроков:", error);
+        } finally {
+            this.isUpdatingUserlist = false;
+            // Планируем следующее обновление
+            setTimeout(
+                () => this.updateUserlistLoop(),
+                USERNAME_LIST_UPDATE_INTERVAL_MS,
+            );
+        }
     }
 
     setupWebSocket() {
         const hostname = window.location.hostname;
         const wsUrl = new URL(`/rooms/${this.roomId}`, `ws://${hostname}`);
         wsUrl.port = GameConfig.WEBSOCKET_PORT;
+        wsUrl.searchParams.append("nickname", this.username);
 
         this.socket = new WebSocket(wsUrl);
 
@@ -371,13 +385,62 @@ class GameClient {
     handleMessage(event) {
         const data = JSON.parse(event.data);
 
-        if (data.alert) {
-            alert(data.alert);
+        if (data.alert) alert(data.alert);
+
+        if (data.game_start !== undefined) {
+            if (data.game_start) {
+                if (this.menuElement) this.menuElement.classList.add("hide");
+                if (this.renderer.canvas)
+                    this.renderer.canvas.classList.remove("hide");
+            } else {
+                if (this.menuElement) this.menuElement.classList.remove("hide");
+                if (this.renderer.canvas)
+                    this.renderer.canvas.classList.add("hide");
+            }
         }
 
-        if (data.texture || data.text || data.map) {
+        if (data.texture || data.text || data.map)
             this.interpolator.addState(data.texture, data.text, data.map);
-        }
+
+        if (data.dead) this.showRestartButton();
+        else this.hideRestartButton();
+    }
+
+    showRestartButton() {
+        // Проверяем, чтобы кнопка уже не была на экране
+        if (document.getElementById("restart-btn")) return;
+
+        const button = document.createElement("button");
+        button.id = "restart-btn";
+        button.innerText = "Начать заново";
+
+        // Стили перенести в CSS
+        Object.assign(button.style, {
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            padding: "15px 30px",
+            fontSize: "20px",
+            zIndex: "1000",
+            cursor: "pointer",
+            backgroundColor: "#ff4757",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            boxShadow: "0 4px 6px rgba(0,0,0,0.3)",
+        });
+
+        button.onclick = () => {
+            this.sendData({ restart: true });
+        };
+
+        document.body.appendChild(button);
+        this.restartButton = button;
+    }
+
+    hideRestartButton() {
+        if (this.restartButton !== null) this.restartButton.remove();
     }
 
     sendData(data) {
@@ -446,11 +509,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.gameClient = new GameClient(roomId);
-});
-
-// Остановка музыки при закрытии вкладки или перезагрузке
-window.addEventListener('beforeunload', () => {
-    if (window.MusicManager) {
-        window.MusicManager.stop();
-    }
 });

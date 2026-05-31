@@ -10,7 +10,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from game.id_pool import IDPool
 
-MAX_VISIBILITY_RADIUS: float = 1000
+MAX_VISIBILITY_RADIUS: float = 1100
 MAX_VISIBILITY_RADIUS_SQUARED: float = MAX_VISIBILITY_RADIUS**2
 
 
@@ -120,11 +120,17 @@ class Bullet(GameObject, TextureComponent, CircleCollisionComponent):
 
 
 class Player(GameObject, TextureComponent, CircleCollisionComponent):
+    INITIAL_HEALTH: float = 100
     speed: float = 300
-    text_label_offset: float = 65
+    nickname_offset: float = 65
 
     def __init__(
-        self, obj_id: int, text_label_id: int, x: float, y: float
+        self,
+        obj_id: int,
+        nickname_label_id: int,
+        x: float,
+        y: float,
+        nickname: str,
     ) -> None:
         texture_path = "Characters/" + random.choice(
             [
@@ -149,12 +155,15 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
             collision_radius=65,
         )  # временно захардкодено
 
-        self.health: float = 100
+        self.health: float = 0
 
         self.vx: float = 0.0
         self.vy: float = 0.0
 
-        self.text_label_id: int = text_label_id
+        self.nick_label_id: int = nickname_label_id
+        self.nickname: str = nickname
+
+        self.revive()
 
     @property
     def is_dead(self) -> bool:
@@ -171,6 +180,13 @@ class Player(GameObject, TextureComponent, CircleCollisionComponent):
         """
         self.x += self.vx * self.speed * delta_time
         self.y += self.vy * self.speed * delta_time
+
+    def revive(self) -> None:
+        self.health = 100
+        # в будущем будем рандомно генерировать
+        self.x = 0
+        self.y = 0
+        self.angle = 0
 
 
 class Game:
@@ -198,13 +214,14 @@ class Game:
             player for player in self.players.values() if not player.is_dead
         ]
 
-    def add_player(self, player_id) -> None:
+    def add_player(self, player_id: int, nickname: str) -> None:
         if player_id not in self.players:
             self.players[player_id] = Player(
                 obj_id=player_id,
-                text_label_id=self.id_pool.get_new_id(),
+                nickname_label_id=self.id_pool.get_new_id(),
                 x=0,
                 y=0,
+                nickname=nickname,
             )
 
     def remove_player(self, player_id) -> None:
@@ -218,14 +235,14 @@ class Game:
             obj_id=bullet_id,
             x=player.x,
             y=player.y,
-            width=45,
-            height=45,
+            width=17,
+            height=17,
             angle=player.get_front_angle(),
             speed=500.0,
             owner_id=player_id,
             max_lifetime=3.0,
             damage=5,
-            collision_radius=5,
+            collision_radius=10,
         )
         self.bullets[bullet_id] = bullet
 
@@ -261,13 +278,25 @@ class Game:
         self, bullet: Bullet, player: Player
     ) -> None:
         player.health -= bullet.damage
-        del self.bullets[bullet.id]
+        # пуля может быть уже удалена, если столкнулась с двумя игроками
+        if bullet.id in self.bullets:
+            del self.bullets[bullet.id]
+
+    def _resolve_bullet_bullet_collision(
+        self,
+        bullet1: Bullet,
+        bullet2: Bullet,
+    ) -> None:
+        if bullet1.id in self.bullets:
+            del self.bullets[bullet1.id]
+        if bullet2.id in self.bullets:
+            del self.bullets[bullet2.id]
 
     def _resolve_player_map_collision(
         self, player: Player, center_distance: float
     ) -> None:
         direction_x, direction_y = normalize_vector(-player.x, -player.y)
-        # когда эта функция вызывается подразумевается, что center_distance > self.MAP_RADIUS
+        # когда эта функция вызывается, подразумевается, что center_distance > self.MAP_RADIUS
         border_distance = center_distance - self.MAP_RADIUS
         shift_x = direction_x * border_distance
         shift_y = direction_y * border_distance
@@ -281,6 +310,14 @@ class Game:
                     continue
                 if are_colliding(bullet, player):  # type: ignore
                     self._resolve_bullet_player_collision(bullet, player)
+        # пули-пули
+        for bullet1 in list(self.bullets.values()):
+            for bullet2 in list(self.bullets.values()):
+                if bullet1.id == bullet2.id:
+                    continue
+                if are_colliding(bullet1, bullet2):  # type: ignore
+                    print("BULLET-BULLET")
+                    self._resolve_bullet_bullet_collision(bullet1, bullet2)
         # пули-карта
         for bullet in list(self.bullets.values()):
             if bullet.x**2 + bullet.y**2 < self.MAP_RADIUS_SQUARED:
@@ -334,10 +371,10 @@ class Game:
 
             text_objects_to_show.append(
                 [
-                    player.text_label_id,
-                    str(player.health),
+                    player.nick_label_id,
+                    player.nickname,
                     relative_x,
-                    relative_y + player.text_label_offset,
+                    relative_y + player.nickname_offset,
                 ]
             )
         return text_objects_to_show
@@ -352,11 +389,14 @@ class Game:
             dict: json с визуальными данными
         """
         player = self.players[player_id]
-        return {
+        client_info = {
             "texture": self._get_texture_objects_to_show(player.x, player.y),
             "text": self._get_text_objects_to_show(player.x, player.y),
             "map": [self.MAP_RADIUS, -player.x, -player.y],
         }
+        if player.is_dead:
+            client_info["dead"] = True
+        return client_info
 
     async def _broadcast_client_info(
         self, websockets: dict[int, WebSocket]
@@ -379,6 +419,10 @@ class Game:
             player_id (int): ID вебсокета клиента
         """
         player = self.players[player_id]
+
+        if "restart" in client_input:
+            player.revive()
+            return
 
         # in-game actions
         if player.is_dead:
