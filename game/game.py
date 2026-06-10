@@ -208,7 +208,7 @@ class Game:
             math.sqrt(len(websockets)) * 800
         )  # временный хардкод
         self.map_radius_squared: float = self.map_radius**2
-        self.victory_kill_count: int = 1  # временный хардкод
+        self.victory_kill_count: int = 7
         self.winner: Player | None = None
 
         # game objects
